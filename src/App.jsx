@@ -1,30 +1,25 @@
-import Navbar from './components/Navbar.jsx';
-import Hero from './components/Hero.jsx';
-import Marquee from './components/Marquee.jsx';
-import Services from './components/Services.jsx';
-import Stats from './components/Stats.jsx';
-import Process from './components/Process.jsx';
-import Testimonials from './components/Testimonials.jsx';
-import CTA from './components/CTA.jsx';
-import Footer from './components/Footer.jsx';
-import CursorGlow from './components/CursorGlow.jsx';
+import { Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout.jsx';
+import Home from './pages/Home.jsx';
+import Products from './pages/Products.jsx';
+import About from './pages/About.jsx';
+import Careers from './pages/Careers.jsx';
+import Help from './pages/Help.jsx';
+import Contact from './pages/Contact.jsx';
+import NotFound from './pages/NotFound.jsx';
 
 export default function App() {
   return (
-    <>
-      <CursorGlow />
-      <div className="grain" aria-hidden="true" />
-      <Navbar />
-      <main>
-        <Hero />
-        <Marquee />
-        <Services />
-        <Stats />
-        <Process />
-        <Testimonials />
-        <CTA />
-      </main>
-      <Footer />
-    </>
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<Home />} />
+        <Route path="products" element={<Products />} />
+        <Route path="about" element={<About />} />
+        <Route path="careers" element={<Careers />} />
+        <Route path="help" element={<Help />} />
+        <Route path="contact" element={<Contact />} />
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
   );
 }

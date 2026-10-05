@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Stardust from './Stardust.jsx';
+import Magnetic from './Magnetic.jsx';
 
 const words = ['brands', 'products', 'experiences', 'futures'];
 
@@ -48,11 +50,15 @@ export default function Hero() {
         </p>
 
         <div className="hero__actions">
-          <a href="#contact" className="btn btn--gold">
-            Start a project
-            <span className="btn__shine" />
-          </a>
-          <a href="#process" className="btn btn--ghost">See how we work</a>
+          <Magnetic>
+            <Link to="/contact" className="btn btn--gold">
+              Start a project
+              <span className="btn__shine" />
+            </Link>
+          </Magnetic>
+          <Magnetic>
+            <Link to="/products" className="btn btn--ghost">Explore products</Link>
+          </Magnetic>
         </div>
       </div>
 
