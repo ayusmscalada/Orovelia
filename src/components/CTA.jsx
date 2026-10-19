@@ -1,47 +1,34 @@
-import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Reveal from './Reveal.jsx';
+import Magnetic from './Magnetic.jsx';
+import { useApp } from '../store/AppStore.jsx';
 
-export default function CTA() {
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
-
-  // TODO: wire up to a real backend / form service.
-  const onSubmit = (e) => {
-    e.preventDefault();
-    if (!email) return;
-    setSent(true);
-    setEmail('');
-  };
+export default function CTA({
+  eyebrow = 'Free for job seekers',
+  title = <>Your next job starts with <em>one</em> profile.</>,
+  text = 'Five minutes to set up. Recruiters who know your trade. No fees, ever.',
+}) {
+  const { user } = useApp();
 
   return (
-    <section className="section" id="contact">
+    <section className="section" id="get-started">
       <div className="container">
         <Reveal className="cta">
           <div className="cta__glow" aria-hidden="true" />
-          <span className="eyebrow">Ready when you are</span>
-          <h2>
-            Let’s build something <em>luminous</em> together.
-          </h2>
-          <p>Tell us where you want to go. We’ll reply within one business day.</p>
-
-          {sent ? (
-            <p className="cta__thanks">✦ Thank you — we’ll be in touch soon.</p>
-          ) : (
-            <form className="cta__form" onSubmit={onSubmit}>
-              <input
-                type="email"
-                required
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                aria-label="Email address"
-              />
-              <button type="submit" className="btn btn--gold">
-                Get in touch
+          <span className="eyebrow">{eyebrow}</span>
+          <h2>{title}</h2>
+          <p>{text}</p>
+          <div className="page-hero__actions">
+            <Magnetic>
+              <Link to={user ? '/dashboard' : '/signup'} className="btn btn--gold">
+                {user ? 'Go to your dashboard' : 'Create your profile'}
                 <span className="btn__shine" />
-              </button>
-            </form>
-          )}
+              </Link>
+            </Magnetic>
+            <Magnetic>
+              <Link to="/jobs" className="btn btn--ghost">Browse jobs</Link>
+            </Magnetic>
+          </div>
         </Reveal>
       </div>
     </section>

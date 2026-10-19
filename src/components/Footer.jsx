@@ -3,35 +3,41 @@ import Logo from './Logo.jsx';
 
 const columns = [
   {
+    title: 'Job seekers',
+    links: [
+      { to: '/jobs', label: 'Browse jobs' },
+      { to: '/industries', label: 'Industries' },
+      { to: '/how-it-works', label: 'How it works' },
+      { to: '/signup', label: 'Create a profile' },
+    ],
+  },
+  {
+    title: 'Employers',
+    links: [
+      { to: '/employers', label: 'Become a hiring partner' },
+      { to: '/employers#partners', label: 'Our partners' },
+      { to: '/employers#process', label: 'How we recruit' },
+    ],
+  },
+  {
     title: 'Company',
     links: [
-      { to: '/about', label: 'About' },
-      { to: '/careers', label: 'Careers' },
-      { to: '/contact', label: 'Contact' },
+      { to: '/about', label: 'About Orovelia' },
+      { to: '/help#team', label: 'Our team' },
+      { to: '/contact', label: 'Contact us' },
     ],
   },
   {
-    title: 'Products',
+    title: 'Trust & safety',
     links: [
-      { to: '/products#aurum', label: 'Aurum' },
-      { to: '/products#halo', label: 'Halo' },
-      { to: '/products#sail', label: 'Sail' },
-      { to: '/products#forge', label: 'Forge' },
-      { to: '/products#pricing', label: 'Pricing' },
-    ],
-  },
-  {
-    title: 'Support',
-    links: [
-      { to: '/help', label: 'Help Center' },
-      { to: '/help#faq', label: 'FAQ' },
-      { to: '/help#team', label: 'Our Team' },
-      { to: '/help#channels', label: 'Contact support' },
+      { to: '/how-it-works#safety', label: 'Safety guidelines' },
+      { to: '/help#faq', label: 'Help Center' },
+      { to: '/help#privacy', label: 'Privacy' },
     ],
   },
 ];
 
-const socials = ['LinkedIn', 'Instagram', 'Dribbble', 'X'];
+const socials = ['LinkedIn', 'Instagram', 'Facebook', 'TikTok'];
 
 export default function Footer() {
   return (
@@ -42,7 +48,7 @@ export default function Footer() {
             <Logo />
             <span>Orovelia</span>
           </Link>
-          <p>Crafting the golden edge of what’s next.</p>
+          <p>Local, hourly and skilled jobs — hand-picked by real recruiters. Always free for job seekers.</p>
           <div className="footer__socials">
             {socials.map((s) => (
               <a key={s} href="#" aria-label={s}>{s}</a>
@@ -62,7 +68,7 @@ export default function Footer() {
       <div className="container footer__bottom">
         <span>© {new Date().getFullYear()} Orovelia. All rights reserved.</span>
         <span className="footer__status">
-          <span className="status-dot" /> All systems operational
+          <span className="status-dot" /> Free for job seekers — always
         </span>
         <span>Privacy · Terms</span>
       </div>

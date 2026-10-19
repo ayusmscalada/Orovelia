@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Stardust from './Stardust.jsx';
-import Magnetic from './Magnetic.jsx';
+import SearchBar from './SearchBar.jsx';
+import GoldenWaterfall from './GoldenWaterfall.jsx';
+import { jobs, getJob } from '../data/jobs.js';
+import { formatPay } from '../utils/format.js';
 
-const words = ['brands', 'products', 'experiences', 'futures'];
+const words = ['life', 'schedule', 'skills', 'city'];
+const quick = ['Cook', 'Delivery Driver', 'Caregiver', 'House Cleaner', 'Electrician', 'Cashier'];
+const featured = getJob('line-cook-nashville');
 
 export default function Hero() {
   const [index, setIndex] = useState(0);
@@ -24,54 +29,64 @@ export default function Hero() {
       <div className="hero__grid" aria-hidden="true" />
 
       <div className="container hero__content">
-        <a href="#services" className="pill">
+        <Link to="/jobs" className="pill">
           <span className="pill__dot" />
-          Now shaping 2026 — explore the studio
+          {jobs.length} open jobs right now — always free for job seekers
           <span className="pill__arrow">→</span>
-        </a>
+        </Link>
 
         <h1 className="hero__title">
-          We craft golden
+          Find work that
           <br />
+          fits your{' '}
           <span className="hero__rotator" aria-live="polite">
             {words.map((w, i) => (
               <span key={w} className={`hero__word ${i === index ? 'is-active' : ''}`}>
-                <em>{w}</em>
+                <em>{w}.</em>
               </span>
             ))}
           </span>
-          <br />
-          that set sail.
         </h1>
 
         <p className="hero__sub">
-          Orovelia is a design &amp; technology house blending strategy, craft and
-          code to help ambitious teams build what comes next — beautifully.
+          Local, hourly and skilled jobs — hand-picked by real recruiters, with honest pay up front.
+          Build one profile, say yes to the roles you love, and we’ll take it from there.
         </p>
 
-        <div className="hero__actions">
-          <Magnetic>
-            <Link to="/contact" className="btn btn--gold">
-              Start a project
-              <span className="btn__shine" />
-            </Link>
-          </Magnetic>
-          <Magnetic>
-            <Link to="/products" className="btn btn--ghost">Explore products</Link>
-          </Magnetic>
+        <div className="hero__search">
+          <SearchBar />
+          <div className="hero__quick">
+            <span>Popular:</span>
+            {quick.map((q) => (
+              <Link key={q} to={`/jobs?q=${encodeURIComponent(q)}`} className="chip chip--sm">
+                {q}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="hero__orb" aria-hidden="true">
-        <div className="orb">
-          <div className="orb__core" />
-          <div className="orb__ring orb__ring--1" />
-          <div className="orb__ring orb__ring--2" />
-          <div className="orb__ring orb__ring--3" />
+      <div className="hero__falls" aria-hidden="true">
+        <GoldenWaterfall />
+        <div className="rec-card">
+          <span className="rec-card__label">✦ New recommendation</span>
+          <strong>{featured.title}</strong>
+          <span className="rec-card__employer">{featured.employer}</span>
+          <span className="rec-card__meta">
+            {featured.city}, {featured.state} · {formatPay(featured)}
+          </span>
+          <span className="rec-card__btn">I’m interested</span>
+        </div>
+        <div className="toast-card">
+          <span className="toast-card__icon">✓</span>
+          <span>
+            <strong>You’re shortlisted!</strong>
+            <small>Medical Assistant · Sacramento</small>
+          </span>
         </div>
       </div>
 
-      <a href="#services" className="scroll-cue" aria-label="Scroll down">
+      <a href="#how" className="scroll-cue" aria-label="Scroll down">
         <span />
       </a>
     </section>

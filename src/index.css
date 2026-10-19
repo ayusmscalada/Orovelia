@@ -453,17 +453,33 @@ em {
   to { opacity: 1; transform: none; filter: none; }
 }
 
-/* Orb */
-.hero__orb {
+/* Golden waterfall */
+.hero__falls {
   position: absolute;
-  right: -4%;
-  top: 50%;
-  transform: translateY(-50%);
-  width: min(46vw, 620px);
-  aspect-ratio: 1;
+  top: 0;
+  bottom: 0;
+  right: -2%;
+  width: min(50vw, 720px);
   z-index: 1;
-  perspective: 1000px;
-  animation: fadeIn 2s 0.3s ease both;
+  /* No "to" keyframe, so the animation ends at the opacity set for each breakpoint. */
+  animation: fallsIn 2.4s 0.2s ease backwards;
+  /* Fade the canvas into the page on every side. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 86%, transparent),
+    linear-gradient(180deg, transparent, #000 10%, #000 84%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 86%, transparent),
+    linear-gradient(180deg, transparent, #000 10%, #000 84%, transparent);
+  mask-composite: intersect;
+}
+
+.waterfall {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes fallsIn {
+  from { opacity: 0; }
 }
 
 @keyframes fadeIn {
@@ -471,41 +487,9 @@ em {
   to { opacity: 1; }
 }
 
-.orb {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-  animation: float 9s ease-in-out infinite;
-}
-
 @keyframes float {
   0%, 100% { transform: translateY(0) rotateX(8deg); }
   50% { transform: translateY(-24px) rotateX(-4deg); }
-}
-
-.orb__core {
-  position: absolute;
-  inset: 22%;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, #fff6dc 0%, var(--gold-1) 12%, var(--gold-2) 35%, #b8551f 62%, #2a0f2e 100%);
-  box-shadow:
-    0 0 80px rgba(240, 178, 74, 0.55),
-    0 0 180px rgba(240, 178, 74, 0.25),
-    inset -30px -40px 80px rgba(60, 10, 70, 0.8),
-    inset 20px 20px 60px rgba(255, 240, 200, 0.4);
-  animation: breathe 6s ease-in-out infinite;
-}
-
-.orb__core::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent, rgba(155, 107, 255, 0.45), transparent 40%, rgba(255, 107, 154, 0.3), transparent 70%);
-  mix-blend-mode: overlay;
-  animation: spin 12s linear infinite;
 }
 
 @keyframes breathe {
@@ -513,57 +497,7 @@ em {
   50% { transform: scale(1.04); }
 }
 
-.orb__ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 227, 163, 0.35);
-}
-
-.orb__ring--1 {
-  inset: 8%;
-  transform: rotateX(72deg);
-  border-width: 1.5px;
-  border-color: rgba(255, 227, 163, 0.55);
-  box-shadow: 0 0 30px rgba(240, 178, 74, 0.3);
-  animation: ring1 14s linear infinite;
-}
-
-.orb__ring--2 {
-  inset: 2%;
-  transform: rotateY(68deg) rotateX(20deg);
-  border-color: rgba(155, 107, 255, 0.4);
-  animation: ring2 20s linear infinite;
-}
-
-.orb__ring--3 {
-  inset: 14%;
-  border-style: dashed;
-  border-color: rgba(255, 255, 255, 0.12);
-  animation: spin 40s linear infinite;
-}
-
-.orb__ring--1::before,
-.orb__ring--2::before {
-  content: '';
-  position: absolute;
-  top: -5px;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--gold-1);
-  box-shadow: 0 0 16px 4px rgba(255, 227, 163, 0.8);
-}
-
-.orb__ring--2::before {
-  background: #d7c2ff;
-  box-shadow: 0 0 16px 4px rgba(155, 107, 255, 0.8);
-}
-
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes ring1 { from { transform: rotateX(72deg) rotateZ(0); } to { transform: rotateX(72deg) rotateZ(360deg); } }
-@keyframes ring2 { from { transform: rotateY(68deg) rotateX(20deg) rotateZ(0); } to { transform: rotateY(68deg) rotateX(20deg) rotateZ(-360deg); } }
 
 .scroll-cue {
   position: absolute;
@@ -1140,9 +1074,9 @@ em {
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
-  .hero__orb {
-    right: -20%;
-    width: 70vw;
+  .hero__falls {
+    right: -22%;
+    width: 80vw;
     opacity: 0.55;
   }
   .process {
@@ -1213,11 +1147,10 @@ em {
   .container {
     padding: 0 16px;
   }
-  .hero__orb {
-    top: 22%;
-    right: -35%;
-    width: 95vw;
-    opacity: 0.35;
+  .hero__falls {
+    right: -55%;
+    width: 120vw;
+    opacity: 0.3;
   }
   .process {
     grid-template-columns: 1fr;

@@ -1,4 +1,6 @@
-const items = ['Strategy', 'Brand Identity', 'Product Design', 'Web Engineering', 'Motion', 'AI Solutions', 'Growth'];
+import { industries } from '../data/jobs.js';
+
+const items = industries.flatMap((i) => i.occupations.slice(0, 2));
 
 export default function Marquee() {
   const row = [...items, ...items];

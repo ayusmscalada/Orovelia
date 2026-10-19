@@ -4,8 +4,8 @@ import PageHero from '../components/PageHero.jsx';
 import Reveal from '../components/Reveal.jsx';
 import OfficeClocks from '../components/OfficeClocks.jsx';
 
-const topics = ['New project', 'Product demo', 'Support', 'Partnership', 'Careers', 'Press'];
-const budgets = ['< $10k', '$10k–50k', '$50k–150k', '$150k+'];
+const topics = ['I’m looking for work', 'I’m hiring', 'Account help', 'Partnerships', 'Press', 'Something else'];
+const budgets = ['1 person', '2–5', '6–20', '20+'];
 
 export default function Contact() {
   const [topic, setTopic] = useState(topics[0]);
@@ -22,8 +22,8 @@ export default function Contact() {
     <>
       <PageHero
         eyebrow="Contact"
-        title={<>Let’s start <em>something</em>.</>}
-        sub="Tell us a little about what you’re working on. A real person will reply within one business day."
+        title={<>We’re here to <em>help</em>.</>}
+        sub="Looking for work, hiring, or just have a question? A real person will reply within one business day — in English or Spanish."
       />
 
       <section className="section section--tight">
@@ -64,9 +64,9 @@ export default function Contact() {
                   <span>Company (optional)</span>
                 </label>
 
-                {topic === 'New project' && (
+                {topic === 'I’m hiring' && (
                   <fieldset>
-                    <legend>Estimated budget</legend>
+                    <legend>How many people are you hiring?</legend>
                     <div className="chips">
                       {budgets.map((b) => (
                         <button type="button" key={b} className={`chip ${budget === b ? 'is-active' : ''}`} onClick={() => setBudget(b)}>
@@ -99,8 +99,8 @@ export default function Contact() {
               <h3>Response promise</h3>
               <ul className="checklist">
                 <li>Reply within 1 business day</li>
-                <li>Intro call with a senior lead</li>
-                <li>Proposal in under a week</li>
+                <li>Help in English or Spanish</li>
+                <li>Never a sales pitch to job seekers</li>
               </ul>
             </div>
           </Reveal>

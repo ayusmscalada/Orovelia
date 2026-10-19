@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import useReveal from '../hooks/useReveal.js';
+import { jobs, industries } from '../data/jobs.js';
+import { team } from '../data/team.js';
 
-const stats = [
-  { value: 120, suffix: '+', label: 'Projects launched' },
-  { value: 98, suffix: '%', label: 'Client satisfaction' },
-  { value: 24, suffix: '', label: 'Countries reached' },
-  { value: 3, suffix: 'x', label: 'Average growth lift' },
+const defaultStats = [
+  { value: jobs.length, label: 'Open jobs' },
+  { value: industries.length, label: 'Industries' },
+  { value: industries.reduce((n, i) => n + i.occupations.length, 0), label: 'Occupations' },
+  { value: team.length, label: 'People helping you' },
+  { value: 0, prefix: '$', label: 'Cost to job seekers' },
 ];
 
-function Counter({ value, suffix, start }) {
+function Counter({ value, prefix = '', suffix = '', start }) {
   const [n, setN] = useState(0);
 
   useEffect(() => {
@@ -26,15 +29,15 @@ function Counter({ value, suffix, start }) {
     return () => cancelAnimationFrame(raf);
   }, [start, value]);
 
-  return <>{n}{suffix}</>;
+  return <>{prefix}{n}{suffix}</>;
 }
 
-export default function Stats() {
+export default function Stats({ items = defaultStats }) {
   const [ref, visible] = useReveal(0.3);
   return (
     <section className="section stats" id="impact" ref={ref}>
-      <div className="container stats__grid">
-        {stats.map((s, i) => (
+      <div className="container stats__grid" style={{ '--cols': items.length }}>
+        {items.map((s, i) => (
           <div
             key={s.label}
             className={`stat reveal ${visible ? 'is-visible' : ''}`}

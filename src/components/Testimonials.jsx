@@ -1,24 +1,6 @@
 import { useEffect, useState } from 'react';
 import Reveal from './Reveal.jsx';
-
-// Placeholder testimonials — replace with real client quotes.
-const quotes = [
-  {
-    text: 'Orovelia didn’t just redesign our product — they reimagined how our customers feel about us. The results were immediate.',
-    name: 'Amara Lindqvist',
-    role: 'CEO, Northwind Labs',
-  },
-  {
-    text: 'Rare combination of taste and technical depth. Every detail was considered, and they shipped ahead of schedule.',
-    name: 'Daniel Okafor',
-    role: 'CTO, Lumen Health',
-  },
-  {
-    text: 'Working with them felt like adding a world-class team overnight. Our conversion rate doubled within a quarter.',
-    name: 'Sofia Marchetti',
-    role: 'Head of Growth, Vela Commerce',
-  },
-];
+import { stories as quotes } from '../data/company.js';
 
 export default function Testimonials() {
   const [active, setActive] = useState(0);

@@ -12,14 +12,14 @@ import { values, milestones } from '../data/company.js';
 import { team } from '../data/team.js';
 
 export default function About() {
-  const leaders = team.filter((m) => m.department === 'Leadership' || m.role.includes('Director') || m.role.includes('Head'));
+  const leaders = team.filter((m) => m.department === 'Leadership' || /Head|Lead|Manager/.test(m.role)).slice(0, 4);
 
   return (
     <>
       <PageHero
         eyebrow="About Orovelia"
-        title={<>Golden ideas, <em>set</em> in motion.</>}
-        sub="We’re a crew of designers, engineers and strategists spread across three continents, united by a love of craft and a stubborn belief that great work changes things."
+        title={<>Good work, <em>found</em> by good people.</>}
+        sub="We’re recruiters, support specialists and engineers who believe finding local work should feel personal, honest and completely free for the people doing it."
       />
 
       <section className="section section--tight">
@@ -27,7 +27,7 @@ export default function About() {
           <span className="eyebrow">Our story</span>
           <ScrollText
             className="about-manifesto"
-            text="Orovelia was born from two words — oro, gold, and vela, the sail. Gold for the value we create, the sail for the momentum we bring. We started in a small Lisbon studio with three clients and one belief: that the best products feel inevitable, honest and quietly beautiful. Today that belief guides every brand we shape and every line of code we ship."
+            text="Orovelia was born from two words — oro, gold, and vela, the sail. Gold for the people who keep our cities running, the sail for the momentum a good job brings. We started in Austin placing line cooks with five neighborhood restaurants, and one belief: every listing should have a real person behind it, real pay on it, and zero cost to the worker. That belief still guides every job we publish."
           />
         </div>
       </section>
@@ -62,7 +62,7 @@ export default function About() {
           <Reveal className="section__head section__head--center">
             <span className="eyebrow">Our journey</span>
             <h2>
-              Seven years of <em>fair</em> winds.
+              Seven years of <em>first</em> shifts.
             </h2>
           </Reveal>
           <Timeline items={milestones} />
@@ -75,7 +75,7 @@ export default function About() {
             <div>
               <span className="eyebrow">Leadership</span>
               <h2>
-                The hands on the <em>helm</em>.
+                The people <em>behind</em> every match.
               </h2>
             </div>
             <Link to="/help#team" className="link-arrow">
@@ -102,7 +102,7 @@ export default function About() {
           <Reveal className="section__head">
             <span className="eyebrow">Where we are</span>
             <h2>
-              Three studios. <em>One</em> crew.
+              Three hubs. <em>Every</em> city.
             </h2>
           </Reveal>
           <OfficeClocks />

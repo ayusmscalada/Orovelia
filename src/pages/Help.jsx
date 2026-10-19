@@ -6,38 +6,32 @@ import TiltCard from '../components/TiltCard.jsx';
 import Accordion from '../components/Accordion.jsx';
 import Avatar from '../components/Avatar.jsx';
 import TeamDirectory from '../components/TeamDirectory.jsx';
-import { helpCategories, faqs, channels } from '../data/help.js';
-import { products } from '../data/products.js';
+import { helpCategories, faqs, channels, safetyTips } from '../data/help.js';
 import { team } from '../data/team.js';
 
-const suggestions = ['password', 'billing', 'API key', 'SSO', 'invite'];
+const suggestions = ['resume', 'apply', 'privacy', 'interview', 'employer'];
 
-// Placeholder 60-day uptime history; a couple of days are marked degraded.
-const uptimeDays = Array.from({ length: 60 }, (_, i) => (i === 17 || i === 43 ? 'warn' : 'ok'));
-
-function Status() {
+function Safety() {
   return (
-    <section className="section section--tight" id="status">
+    <section className="section section--tight" id="safety">
       <div className="container">
-        <Reveal className="status">
-          <div className="status__head">
-            <span className="status__badge">
-              <span className="status-dot" /> All systems operational
-            </span>
-            <span className="status__updated">Updated just now</span>
-          </div>
-          {products.map((p) => (
-            <div key={p.id} className="status__row" style={{ '--accent': p.accent }}>
-              <span className="status__name">{p.icon} {p.name}</span>
-              <span className="status__bars" aria-hidden="true">
-                {uptimeDays.map((d, i) => (
-                  <span key={i} className={d === 'warn' && p.id === 'halo' ? 'is-warn' : ''} />
-                ))}
-              </span>
-              <span className="status__uptime">{p.id === 'halo' ? '99.95%' : '100%'}</span>
-            </div>
-          ))}
+        <Reveal className="section__head section__head--center" id="privacy">
+          <span className="eyebrow">Trust & safety</span>
+          <h2>
+            Your safety, <em>first</em>.
+          </h2>
         </Reveal>
+        <div className="values">
+          {safetyTips.map((t, i) => (
+            <Reveal key={t.title} delay={i * 90}>
+              <TiltCard className="value">
+                <span className="value__icon">{t.icon}</span>
+                <h3>{t.title}</h3>
+                <p>{t.text}</p>
+              </TiltCard>
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -76,13 +70,13 @@ export default function Help() {
       <PageHero
         eyebrow="Help Center"
         title={<>How can we <em>help</em> you today?</>}
-        sub="Search our guides, browse common questions, or reach the exact person who knows the answer."
+        sub="Answers for job seekers and employers — or reach the exact recruiter or support specialist who knows."
       >
         <div className="help-search">
           <span className="help-search__icon" aria-hidden="true">⌕</span>
           <input
             type="search"
-            placeholder="Search for answers — try “billing” or “API key”"
+            placeholder="Search for answers — try “resume” or “interview”"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}
@@ -172,7 +166,7 @@ export default function Help() {
         </div>
       </section>
 
-      <Status />
+      <Safety />
 
       <TeamDirectory />
 
@@ -187,7 +181,7 @@ export default function Help() {
           <div className="channels">
             {channels.map((c, i) => (
               <Reveal key={c.title} delay={i * 100}>
-                <TiltCard as="a" href={c.href} className="channel">
+                <TiltCard {...(c.href.startsWith('/') ? { as: Link, to: c.href } : { as: 'a', href: c.href })} className="channel">
                   <span className="channel__icon">{c.icon}</span>
                   <h3>{c.title}</h3>
                   <span className="channel__text">{c.text}</span>
@@ -196,7 +190,7 @@ export default function Help() {
               </Reveal>
             ))}
           </div>
-          <Reveal className="jobs__note">
+          <Reveal className="note-line">
             Prefer a form? <Link to="/contact" className="link-arrow">Send us a message <span>→</span></Link>
           </Reveal>
         </div>
