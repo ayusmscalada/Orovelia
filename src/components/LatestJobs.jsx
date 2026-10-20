@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import Reveal from './Reveal.jsx';
 import JobCard from './JobCard.jsx';
-import { jobs } from '../data/jobs.js';
-
-const latest = [...jobs].sort((a, b) => a.postedDaysAgo - b.postedDaysAgo).slice(0, 6);
+import { useJobs } from '../store/JobsStore.jsx';
 
 export default function LatestJobs() {
+  const { jobs, loading } = useJobs();
+  const latest = [...jobs].sort((a, b) => a.postedDaysAgo - b.postedDaysAgo).slice(0, 6);
+
   return (
     <section className="section" id="latest">
       <div className="container">
@@ -26,6 +27,7 @@ export default function LatestJobs() {
               <JobCard job={job} />
             </Reveal>
           ))}
+          {loading && !latest.length && Array.from({ length: 4 }, (_, i) => <div key={i} className="job-card job-card--skeleton" />)}
         </div>
       </div>
     </section>

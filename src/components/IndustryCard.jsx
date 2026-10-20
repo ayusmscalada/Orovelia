@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import TiltCard from './TiltCard.jsx';
-import { jobsInIndustry } from '../data/jobs.js';
+import { useJobs } from '../store/JobsStore.jsx';
 
 export default function IndustryCard({ industry, showOccupations = false }) {
+  const { jobsInIndustry } = useJobs();
   const count = jobsInIndustry(industry.id).length;
 
   return (

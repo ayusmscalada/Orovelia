@@ -1,5 +1,5 @@
-// Placeholder listings — swap for real data (or an API call) when the backend is ready.
-// Each industry has a lead recruiter (see team.js) who owns its listings.
+// Industries, job types and starter listings.
+// Each industry has a lead recruiter (see team.js) who is shown on its listings.
 
 export const industries = [
   {
@@ -145,7 +145,10 @@ const raw = [
   ['housekeeper-miami', 'Hotel Housekeeper', 'hospitality', 'The Palmetto Hotel', 'Miami', 'FL', 'Full-time', 'Days, rotating weekends', 16, 18, 'hour', 3, { summary: 'A boutique hotel in Brickell offering steady hours, free parking and a staff meal every shift.', responsibilities: ['Clean and refresh guest rooms', 'Restock amenities', 'Report maintenance needs', 'Deliver warm guest service'] }],
 ];
 
-export const jobs = raw.map(
+// Starter listings. With Supabase connected, jobs are loaded from the `jobs` table instead
+// (these are seeded into it by supabase/migrations/0003_seed_jobs.sql); without it, the site
+// falls back to this list so it still works as a demo.
+export const seedJobs = raw.map(
   ([id, title, industry, employer, city, state, type, schedule, payMin, payMax, payUnit, postedDaysAgo, extra]) => {
     const ind = industries.find((i) => i.id === industry);
     return {
@@ -170,6 +173,4 @@ export const jobs = raw.map(
   }
 );
 
-export const getJob = (id) => jobs.find((j) => j.id === id);
-export const getIndustry = (id) => industries.find((i) => i.id === id);
-export const jobsInIndustry = (id) => jobs.filter((j) => j.industry === id);
+export const getIndustry = (id) => industries.find((i) => i.id === id) || industries[0];

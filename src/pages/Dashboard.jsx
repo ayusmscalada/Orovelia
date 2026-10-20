@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import Avatar from '../components/Avatar.jsx';
 import JobCard from '../components/JobCard.jsx';
 import StageTracker from '../components/StageTracker.jsx';
+import Chat from '../components/Chat.jsx';
+import Logo from '../components/Logo.jsx';
 import {
   AvailabilityFields,
   BasicsFields,
@@ -10,8 +12,8 @@ import {
   WorkFields,
   completeness,
 } from '../components/ProfileFields.jsx';
-import { useApp, STAGES } from '../store/AppStore.jsx';
-import { jobs, getJob } from '../data/jobs.js';
+import { useApp, stageLabel } from '../store/AppStore.jsx';
+import { useJobs } from '../store/JobsStore.jsx';
 import { getMember } from '../data/team.js';
 import { firstName, formatPay, locationLabel, timeAgo } from '../utils/format.js';
 
@@ -54,6 +56,7 @@ function Empty({ icon, title, text, cta }) {
 
 function Overview({ goTo }) {
   const { user, state, unreadMessages } = useApp();
+  const { jobs } = useJobs();
   const score = completeness(user);
   const applied = new Set(state.applications.map((a) => a.jobId));
   const recommended = jobs
@@ -106,15 +109,19 @@ function Overview({ goTo }) {
         <div className="dash-panel__head">
           <h3>Recent activity</h3>
         </div>
-        <ul className="activity">
-          {state.notifications.slice(0, 6).map((n) => (
-            <li key={n.id}>
-              <span className="activity__dot" />
-              <Link to={n.to || '/dashboard'}>{n.text}</Link>
-              <small>{timeAgo(n.at)}</small>
-            </li>
-          ))}
-        </ul>
+        {state.notifications.length ? (
+          <ul className="activity">
+            {state.notifications.slice(0, 6).map((n) => (
+              <li key={n.id}>
+                <span className="activity__dot" />
+                <Link to={n.to || '/dashboard'}>{n.text}</Link>
+                <small>{timeAgo(n.at)}</small>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted-note">Your updates will show up here — say yes to a job to get started.</p>
+        )}
       </div>
     </div>
   );
@@ -122,6 +129,7 @@ function Overview({ goTo }) {
 
 function Applications() {
   const { state, withdraw } = useApp();
+  const { getJob } = useJobs();
 
   if (!state.applications.length) {
     return (
@@ -138,27 +146,29 @@ function Applications() {
     <div className="dash-stack">
       {state.applications.map((a) => {
         const job = getJob(a.jobId);
-        const recruiter = getMember(job.recruiterId);
+        const recruiter = job && getMember(job.recruiterId);
         return (
-          <div key={a.jobId} className="app-card">
+          <div key={a.id} className="app-card">
             <div className="app-card__head">
               <div>
-                <Link to={`/jobs/${job.id}`} className="app-card__title">{job.title}</Link>
-                <p>{job.employer} · {locationLabel(job)} · {formatPay(job)}</p>
+                {job ? (
+                  <Link to={`/jobs/${job.id}`} className="app-card__title">{job.title}</Link>
+                ) : (
+                  <span className="app-card__title">A job that’s no longer listed</span>
+                )}
+                <p>{job ? `${job.employer} · ${locationLabel(job)} · ${formatPay(job)}` : 'This role has been filled or closed.'}</p>
               </div>
-              <span className={`pill-tag pill-tag--stage stage--${a.stage}`}>
-                {STAGES.find((s) => s.id === a.stage).label}
-              </span>
+              <span className={`pill-tag pill-tag--stage stage--${a.stage}`}>{stageLabel(a.stage)}</span>
             </div>
             <StageTracker stage={a.stage} history={a.history} />
             <div className="app-card__foot">
               <span className="app-card__recruiter">
-                <Avatar name={recruiter.name} hue={recruiter.hue} photo={recruiter.photo} size={32} />
-                {recruiter.name}
+                {recruiter && <Avatar name={recruiter.name} hue={recruiter.hue} photo={recruiter.photo} size={32} />}
+                {recruiter ? recruiter.name : 'Orovelia team'}
               </span>
               <span className="app-card__actions">
-                <Link to={`/dashboard?tab=messages&with=${recruiter.id}`} className="chip chip--sm">Message</Link>
-                <button className="chip chip--sm" onClick={() => withdraw(job.id)}>Withdraw</button>
+                <Link to="/dashboard?tab=messages" className="chip chip--sm">Message</Link>
+                <button className="chip chip--sm" onClick={() => withdraw(a.jobId).catch(() => {})}>Withdraw</button>
               </span>
             </div>
           </div>
@@ -170,7 +180,9 @@ function Applications() {
 
 function Saved() {
   const { state } = useApp();
-  if (!state.saved.length) {
+  const { getJob } = useJobs();
+  const jobs = state.saved.map((id) => getJob(id)).filter(Boolean);
+  if (!jobs.length) {
     return (
       <Empty
         icon="♡"
@@ -180,105 +192,39 @@ function Saved() {
       />
     );
   }
-  return (
-    <div className="job-list">
-      {state.saved.map((id) => getJob(id)).filter(Boolean).map((j) => <JobCard key={j.id} job={j} />)}
-    </div>
-  );
+  return <div className="job-list">{jobs.map((j) => <JobCard key={j.id} job={j} />)}</div>;
 }
 
 function Messages() {
-  const { state, sendMessage, readThread } = useApp();
-  const [params, setParams] = useSearchParams();
-  const [text, setText] = useState('');
-  const endRef = useRef(null);
+  const { user, state, sendMessage, readThread } = useApp();
+  const { getJob } = useJobs();
+  const appliedJobs = state.applications.map((a) => getJob(a.jobId)).filter(Boolean);
 
-  const threadIds = useMemo(
-    () =>
-      Object.keys(state.threads).sort((a, b) => {
-        const la = state.threads[a].at(-1)?.at || '';
-        const lb = state.threads[b].at(-1)?.at || '';
-        return lb.localeCompare(la);
-      }),
-    [state.threads]
-  );
-
-  const requested = params.get('with');
-  const active = requested && getMember(requested) ? requested : threadIds[0];
-  const messages = state.threads[active] || [];
-  const member = getMember(active);
-
+  // Opening the conversation (or a new reply arriving while open) marks it read.
   useEffect(() => {
-    if (active) readThread(active);
-    endRef.current?.scrollIntoView({ block: 'nearest' });
+    readThread().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, messages.length]);
-
-  const isUnread = (id) => {
-    const read = state.readAt[id] ? new Date(state.readAt[id]).getTime() : 0;
-    return state.threads[id].some((m) => m.from === 'them' && new Date(m.at).getTime() > read);
-  };
-
-  const onSend = (e) => {
-    e.preventDefault();
-    if (!text.trim() || !active) return;
-    sendMessage(active, text.trim());
-    setText('');
-  };
-
-  if (!active) {
-    return <Empty icon="✉" title="No messages yet" text="Say yes to a job and your recruiter will reach out here." />;
-  }
-
-  const list = threadIds.includes(active) ? threadIds : [active, ...threadIds];
+  }, [state.messages.length]);
 
   return (
-    <div className="inbox">
-      <ul className="inbox__list">
-        {list.map((id) => {
-          const m = getMember(id);
-          const last = state.threads[id]?.at(-1);
-          return (
-            <li key={id}>
-              <button
-                className={`inbox__thread ${id === active ? 'is-active' : ''}`}
-                onClick={() => setParams({ tab: 'messages', with: id }, { replace: true })}
-              >
-                <Avatar name={m.name} hue={m.hue} photo={m.photo} size={40} />
-                <span className="inbox__preview">
-                  <strong>{m.name}</strong>
-                  <small>{last ? last.text : m.role}</small>
-                </span>
-                {state.threads[id] && isUnread(id) && id !== active && <span className="inbox__unread" />}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
-      <div className="chat">
-        <div className="chat__head">
-          <Avatar name={member.name} hue={member.hue} photo={member.photo} size={40} />
-          <span>
-            <strong>{member.name}</strong>
-            <small>{member.role}</small>
-          </span>
-        </div>
-        <div className="chat__body">
-          {messages.length === 0 && <p className="chat__empty">Start the conversation — {firstName(member.name)} usually replies within a few hours.</p>}
-          {messages.map((m) => (
-            <div key={m.id} className={`bubble ${m.from === 'me' ? 'bubble--me' : ''}`}>
-              <p>{m.text}</p>
-              <small>{timeAgo(m.at)}</small>
-            </div>
-          ))}
-          <div ref={endRef} />
-        </div>
-        <form className="chat__form" onSubmit={onSend}>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${firstName(member.name)}…`} aria-label="Message" />
-          <button type="submit" className="btn btn--gold" disabled={!text.trim()}>Send</button>
-        </form>
-      </div>
+    <div className="inbox inbox--single">
+      <Chat
+        header={
+          <>
+            <span className="chat__team-logo"><Logo size={26} /></span>
+            <span>
+              <strong>Orovelia recruiting team</strong>
+              <small>Usually replies within a few hours · Mon–Sat</small>
+            </span>
+          </>
+        }
+        messages={state.messages}
+        meId={user.id}
+        onSend={sendMessage}
+        jobOptions={appliedJobs}
+        placeholder="Ask about pay, schedules, interviews…"
+        emptyText={`Hi ${firstName(user.name)}! Questions about a job, your profile or an interview? Send us a message and a recruiter will reply here.`}
+      />
     </div>
   );
 }
@@ -419,6 +365,7 @@ export default function Dashboard() {
     );
   }
   if (!user) return <Navigate to="/login?next=/dashboard" replace />;
+  if (user.role === 'admin') return <Navigate to="/admin" replace />;
 
   const tab = panels[params.get('tab')] ? params.get('tab') : 'overview';
   const Panel = panels[tab];

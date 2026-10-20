@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
 import useReveal from '../hooks/useReveal.js';
-import { jobs, industries } from '../data/jobs.js';
+import { industries } from '../data/jobs.js';
 import { team } from '../data/team.js';
+import { useJobs } from '../store/JobsStore.jsx';
 
-const defaultStats = [
-  { value: jobs.length, label: 'Open jobs' },
-  { value: industries.length, label: 'Industries' },
-  { value: industries.reduce((n, i) => n + i.occupations.length, 0), label: 'Occupations' },
-  { value: team.length, label: 'People helping you' },
-  { value: 0, prefix: '$', label: 'Cost to job seekers' },
-];
+const occupationCount = industries.reduce((n, i) => n + i.occupations.length, 0);
 
 function Counter({ value, prefix = '', suffix = '', start }) {
   const [n, setN] = useState(0);
@@ -32,8 +27,17 @@ function Counter({ value, prefix = '', suffix = '', start }) {
   return <>{prefix}{n}{suffix}</>;
 }
 
-export default function Stats({ items = defaultStats }) {
+export default function Stats({ items }) {
   const [ref, visible] = useReveal(0.3);
+  const { jobs } = useJobs();
+  items ??= [
+    { value: jobs.length, label: 'Open jobs' },
+    { value: industries.length, label: 'Industries' },
+    { value: occupationCount, label: 'Occupations' },
+    { value: team.length, label: 'People helping you' },
+    { value: 0, prefix: '$', label: 'Cost to job seekers' },
+  ];
+
   return (
     <section className="section stats" id="impact" ref={ref}>
       <div className="container stats__grid" style={{ '--cols': items.length }}>

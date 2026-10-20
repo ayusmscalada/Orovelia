@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -11,12 +9,19 @@ if (isSecretKey) {
 
 export const isSupabaseConfigured = Boolean(url && key && !isSecretKey);
 
-// Implicit flow so confirmation / reset links work even when opened in a different browser.
-export const supabase = isSupabaseConfigured
-  ? createClient(url, key, {
+// The Supabase SDK is ~60 kB gzipped, so it loads in its own chunk after first paint
+// instead of delaying the landing page. Resolves to null when not configured.
+let clientPromise;
+export function getSupabase() {
+  if (!isSupabaseConfigured) return Promise.resolve(null);
+  clientPromise ??= import('@supabase/supabase-js').then(({ createClient }) =>
+    // Implicit flow so confirmation / reset links work even when opened in a different browser.
+    createClient(url, key, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     })
-  : null;
+  );
+  return clientPromise;
+}
 
 // Map between the profiles table (snake_case) and the shape the UI uses.
 export function profileFromRow(row) {
@@ -34,6 +39,8 @@ export function profileFromRow(row) {
     certificates: row.certificates || [],
     availability: row.availability || { days: [], shifts: [] },
     resumeName: row.resume_name,
+    role: row.role || 'candidate',
+    createdAt: row.created_at,
   };
 }
 
@@ -51,6 +58,67 @@ export function profileToRow(p) {
     availability: p.availability ?? { days: [], shifts: [] },
     resume_name: p.resumeName ?? '',
   };
+}
+
+// ---------- Jobs ----------
+const DAY = 86400000;
+
+export function jobFromRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    industry: row.industry,
+    employer: row.employer,
+    city: row.city,
+    state: row.state,
+    remote: row.remote,
+    type: row.type,
+    schedule: row.schedule,
+    payMin: Number(row.pay_min),
+    payMax: Number(row.pay_max),
+    payUnit: row.pay_unit,
+    summary: row.summary,
+    responsibilities: row.responsibilities || [],
+    requirements: row.requirements || [],
+    benefits: row.benefits || [],
+    urgent: row.urgent,
+    recruiterId: row.recruiter_id,
+    status: row.status,
+    createdAt: row.created_at,
+    postedDaysAgo: Math.max(0, Math.floor((Date.now() - new Date(row.created_at).getTime()) / DAY)),
+  };
+}
+
+export function jobToRow(j) {
+  return {
+    title: j.title.trim(),
+    industry: j.industry,
+    employer: j.employer.trim(),
+    city: j.remote ? 'Remote' : j.city.trim(),
+    state: j.remote ? 'US' : j.state.trim().toUpperCase(),
+    remote: Boolean(j.remote),
+    type: j.type,
+    schedule: j.schedule.trim(),
+    pay_min: Number(j.payMin),
+    pay_max: Number(j.payMax),
+    pay_unit: j.payUnit,
+    summary: j.summary.trim(),
+    responsibilities: j.responsibilities.map((x) => x.trim()).filter(Boolean),
+    requirements: j.requirements.map((x) => x.trim()).filter(Boolean),
+    benefits: j.benefits.map((x) => x.trim()).filter(Boolean),
+    urgent: Boolean(j.urgent),
+    recruiter_id: j.recruiterId,
+    status: j.status || 'open',
+  };
+}
+
+// Public job listings via plain REST — no SDK needed, so the landing page stays light.
+export async function fetchOpenJobs() {
+  const res = await fetch(`${url}/rest/v1/jobs?select=*&status=eq.open&order=created_at.desc`, {
+    headers: { apikey: key },
+  });
+  if (!res.ok) throw new Error(`Couldn’t load jobs (${res.status})`);
+  return (await res.json()).map(jobFromRow);
 }
 
 // Turn Supabase auth errors into friendly copy.

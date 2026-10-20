@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
+import { whenIdle } from '../utils/idle.js';
 
 // Animated golden waterfall: a river of light slides over a cliff lip between two rock faces,
 // falls as a glowing curtain into a misty pool, with droplets, spray, rising mist and ripples.
-// Pauses when off-screen or in a background tab, and draws a still frame for reduced motion.
+// Starts after first paint, pauses off-screen / in background tabs, drops to 30fps with fewer
+// particles on slow devices, and draws a still frame for reduced motion.
 export default function GoldenWaterfall({ className = '' }) {
   const canvasRef = useRef(null);
 
@@ -15,8 +17,10 @@ export default function GoldenWaterfall({ className = '' }) {
     let cx, halfW, ledgeY, poolY, fallH;
     let streams = [], drops = [], spray = [], mist = [], ripples = [], sparkles = [];
     let rockL = [], rockR = [], rockTopL = [], rockTopR = [];
-    let grads = {}, mistSprite;
+    let grads = {}, mistSprite, edgeMask;
     let raf = 0, running = false, last = 0, t = 0, rippleTimer = 0;
+    // Adaptive quality: measured over the first frames, then fixed.
+    let lowPower = false, sampleFrames = 0, sampleStart = 0, lastDrawn = 0;
 
     const rand = (a, b) => a + Math.random() * (b - a);
     const EDGE_STEPS = 18;
@@ -26,7 +30,9 @@ export default function GoldenWaterfall({ className = '' }) {
     const xAt = (s, p) => cx + s.u * spreadAt(p) + Math.sin(t * 0.9 + s.phase) * 2.4 * p;
 
     function setup() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // A soft, glowing effect doesn't need full retina resolution — and on slow devices
+      // it renders at 60% and is scaled up by CSS, which is visually identical for glow.
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * (lowPower ? 0.6 : 1);
       W = canvas.offsetWidth;
       H = canvas.offsetHeight;
       canvas.width = W * dpr;
@@ -138,6 +144,28 @@ export default function GoldenWaterfall({ className = '' }) {
       mg.addColorStop(1, 'rgba(255, 220, 160, 0)');
       m.fillStyle = mg;
       m.fillRect(0, 0, 128, 128);
+
+      // Fade every edge into the page. Applied inside the canvas each frame — far cheaper than a
+      // CSS mask on an element that repaints 60 times a second.
+      edgeMask = document.createElement('canvas');
+      edgeMask.width = W;
+      edgeMask.height = H;
+      const e = edgeMask.getContext('2d');
+      const hz = e.createLinearGradient(0, 0, W, 0);
+      hz.addColorStop(0, 'rgba(0,0,0,0)');
+      hz.addColorStop(0.16, '#000');
+      hz.addColorStop(0.86, '#000');
+      hz.addColorStop(1, 'rgba(0,0,0,0)');
+      e.fillStyle = hz;
+      e.fillRect(0, 0, W, H);
+      e.globalCompositeOperation = 'destination-in';
+      const vt = e.createLinearGradient(0, 0, 0, H);
+      vt.addColorStop(0, 'rgba(0,0,0,0)');
+      vt.addColorStop(0.1, '#000');
+      vt.addColorStop(0.84, '#000');
+      vt.addColorStop(1, 'rgba(0,0,0,0)');
+      e.fillStyle = vt;
+      e.fillRect(0, 0, W, H);
     }
 
     function newDrop(anywhere = false) {
@@ -378,6 +406,12 @@ export default function GoldenWaterfall({ className = '' }) {
     }
 
     function frame(time) {
+      // On slow devices, draw every other frame (~30fps).
+      if (lowPower && running && time - lastDrawn < 30) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      lastDrawn = time;
       const dt = last ? Math.min(0.05, Math.max(0, (time - last) / 1000)) : 1 / 60;
       last = time;
       t += dt;
@@ -400,8 +434,22 @@ export default function GoldenWaterfall({ className = '' }) {
       drawMist(dt);
       drawSpray(dt);
       drawSparkles(dt);
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(edgeMask, 0, 0, W, H);
       ctx.globalCompositeOperation = 'source-over';
 
+      if (running && !lowPower && sampleFrames < 60) {
+        if (sampleFrames === 0) sampleStart = time;
+        if (++sampleFrames === 60 && (time - sampleStart) / 59 > 22) {
+          // The device can't hold ~45fps (slow CPU, no GPU, battery saver): lighten the scene.
+          lowPower = true;
+          setup();
+          drops.length = Math.ceil(drops.length / 2);
+          streams = streams.filter((_, i) => i % 3 !== 0);
+          mist.length = 10;
+        }
+      }
+      canvas.classList.add('is-ready'); // fade in on the first real frame
       if (running) raf = requestAnimationFrame(frame);
     }
 
@@ -421,25 +469,35 @@ export default function GoldenWaterfall({ className = '' }) {
       for (let i = 0; i < 90; i++) frame(i * 16);
     };
 
-    setup();
-    if (reduced) still();
+    let ro, io, visible = false;
+    const onVisibility = () => (document.hidden ? stop() : visible && start());
 
-    const ro = new ResizeObserver(() => {
+    // Wait until the page has painted so the hero text and search appear first.
+    const cancelIdle = whenIdle(() => {
       setup();
       if (reduced) still();
+      ro = new ResizeObserver(() => {
+        setup();
+        if (lowPower) {
+          drops.length = Math.ceil(drops.length / 2);
+          streams = streams.filter((_, i) => i % 3 !== 0);
+        }
+        if (reduced) still();
+      });
+      ro.observe(canvas);
+      io = new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        visible && !document.hidden ? start() : stop();
+      });
+      io.observe(canvas);
+      document.addEventListener('visibilitychange', onVisibility);
     });
-    ro.observe(canvas);
-
-    const io = new IntersectionObserver(([entry]) => (entry.isIntersecting ? start() : stop()));
-    io.observe(canvas);
-
-    const onVisibility = () => (document.hidden ? stop() : start());
-    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
+      cancelIdle();
       stop();
-      ro.disconnect();
-      io.disconnect();
+      ro?.disconnect();
+      io?.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);

@@ -6,31 +6,54 @@ import SaveButton from '../components/SaveButton.jsx';
 import JobCard from '../components/JobCard.jsx';
 import StageTracker from '../components/StageTracker.jsx';
 import NotFound from './NotFound.jsx';
-import { getJob, getIndustry, jobs } from '../data/jobs.js';
-import { getMember } from '../data/team.js';
+import { getIndustry } from '../data/jobs.js';
+import { getMember, team } from '../data/team.js';
+import { useJobs } from '../store/JobsStore.jsx';
 import { formatPay, locationLabel, postedLabel } from '../utils/format.js';
 import { useApp } from '../store/AppStore.jsx';
 
 export default function JobDetail() {
   const { id } = useParams();
+  const { jobs, getJob, loading } = useJobs();
   const job = getJob(id);
   const navigate = useNavigate();
   const { user, applicationFor, expressInterest, withdraw } = useApp();
   const [reported, setReported] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
+  if (!job && loading) {
+    return (
+      <div className="page-loading">
+        <span className="loader" aria-label="Loading job" />
+      </div>
+    );
+  }
   if (!job) return <NotFound />;
 
   const industry = getIndustry(job.industry);
-  const recruiter = getMember(job.recruiterId);
+  const recruiter = getMember(job.recruiterId) || team[2];
   const app = applicationFor(job.id);
   const similar = jobs.filter((j) => j.industry === job.industry && j.id !== job.id).slice(0, 3);
+
+  const run = async (fn) => {
+    setBusy(true);
+    setError('');
+    try {
+      await fn();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const onInterest = () => {
     if (!user) {
       navigate(`/signup?next=/jobs/${job.id}`);
       return;
     }
-    expressInterest(job.id);
+    run(() => expressInterest(job.id));
   };
 
   return (
@@ -115,14 +138,16 @@ export default function JobDetail() {
                     <span className="status-dot" /> You said yes to this job
                   </div>
                   <StageTracker stage={app.stage} history={app.history} />
-                  <Link to={`/dashboard?tab=messages&with=${recruiter.id}`} className="btn btn--gold apply-card__btn">
-                    Message {recruiter.name.split(' ')[0]} <span className="btn__shine" />
+                  <Link to="/dashboard?tab=messages" className="btn btn--gold apply-card__btn">
+                    Message your recruiter <span className="btn__shine" />
                   </Link>
-                  <button className="text-btn" onClick={() => withdraw(job.id)}>Withdraw interest</button>
+                  <button className="text-btn" onClick={() => run(() => withdraw(job.id))} disabled={busy}>
+                    Withdraw interest
+                  </button>
                 </>
               ) : (
                 <>
-                  <button className="btn btn--gold apply-card__btn" onClick={onInterest}>
+                  <button className="btn btn--gold apply-card__btn" onClick={onInterest} disabled={busy}>
                     I’m interested <span className="btn__shine" />
                   </button>
                   <p className="apply-card__hint">
@@ -132,6 +157,7 @@ export default function JobDetail() {
                   </p>
                 </>
               )}
+              {error && <p className="form-error" role="alert">{error}</p>}
               <SaveButton jobId={job.id} withLabel />
             </div>
 
@@ -146,7 +172,7 @@ export default function JobDetail() {
               </div>
               <p>Speaks {recruiter.languages.join(' & ')} · Usually replies within a few hours</p>
               <Link
-                to={user ? `/dashboard?tab=messages&with=${recruiter.id}` : `/help?member=${recruiter.id}#team`}
+                to={user ? '/dashboard?tab=messages' : `/help?member=${recruiter.id}#team`}
                 className="link-arrow"
               >
                 {user ? 'Ask a question' : 'View profile'} <span>→</span>

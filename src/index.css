@@ -18,7 +18,7 @@
   --gold-grad: linear-gradient(120deg, var(--gold-1) 0%, var(--gold-2) 45%, #e89a5c 70%, var(--violet) 100%);
 
   --serif: 'Instrument Serif', 'Times New Roman', serif;
-  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --radius: 22px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -38,7 +38,7 @@ html {
 }
 
 body {
-  background: var(--bg);
+  background: var(--bg) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.06'/></svg>");
   color: var(--text);
   font-family: var(--sans);
   font-weight: 400;
@@ -84,15 +84,6 @@ em {
 }
 
 /* ---------- Ambient layers ---------- */
-.grain {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 100;
-  opacity: 0.06;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-}
-
 .cursor-glow {
   position: fixed;
   top: -300px;
@@ -110,14 +101,12 @@ em {
 .reveal {
   opacity: 0;
   transform: translateY(36px);
-  filter: blur(6px);
-  transition: opacity 1s var(--ease), transform 1s var(--ease), filter 1s var(--ease);
+  transition: opacity 1s var(--ease), transform 1s var(--ease);
 }
 
 .reveal.is-visible {
   opacity: 1;
   transform: none;
-  filter: none;
 }
 
 /* ---------- Buttons ---------- */
@@ -153,23 +142,23 @@ em {
 .btn__shine {
   position: absolute;
   top: 0;
-  left: -60%;
+  left: 0;
   width: 40%;
   height: 100%;
   background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.7), transparent);
-  transform: skewX(-20deg);
+  transform: translateX(-150%) skewX(-20deg);
   animation: shine 4s ease-in-out infinite;
+  pointer-events: none;
 }
 
 @keyframes shine {
-  0%, 60% { left: -60%; }
-  100% { left: 130%; }
+  0%, 60% { transform: translateX(-150%) skewX(-20deg); }
+  100% { transform: translateX(330%) skewX(-20deg); }
 }
 
 .btn--ghost {
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .btn--ghost:hover {
@@ -192,7 +181,7 @@ em {
 .nav--scrolled {
   padding: 12px 0;
   background: rgba(7, 6, 11, 0.7);
-  backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(12px);
   border-bottom-color: var(--border);
 }
 
@@ -285,14 +274,12 @@ em {
   position: absolute;
   inset: 0;
   z-index: -3;
-  filter: blur(90px);
   opacity: 0.75;
 }
 
 .blob {
   position: absolute;
   border-radius: 50%;
-  mix-blend-mode: screen;
 }
 
 .blob--gold {
@@ -302,8 +289,7 @@ em {
   max-height: 760px;
   right: -10%;
   top: -15%;
-  background: radial-gradient(circle, rgba(240, 178, 74, 0.55), transparent 65%);
-  animation: drift 18s ease-in-out infinite alternate;
+  background: radial-gradient(closest-side, rgba(240, 178, 74, 0.5), rgba(240, 178, 74, 0.18) 45%, transparent);
 }
 
 .blob--violet {
@@ -313,8 +299,7 @@ em {
   max-height: 620px;
   left: -12%;
   bottom: -20%;
-  background: radial-gradient(circle, rgba(155, 107, 255, 0.5), transparent 65%);
-  animation: drift 22s ease-in-out infinite alternate-reverse;
+  background: radial-gradient(closest-side, rgba(155, 107, 255, 0.42), rgba(155, 107, 255, 0.14) 45%, transparent);
 }
 
 .blob--rose {
@@ -324,8 +309,7 @@ em {
   max-height: 420px;
   left: 40%;
   top: 45%;
-  background: radial-gradient(circle, rgba(255, 107, 154, 0.3), transparent 65%);
-  animation: drift 26s ease-in-out infinite alternate;
+  background: radial-gradient(closest-side, rgba(255, 107, 154, 0.26), transparent);
 }
 
 @keyframes drift {
@@ -369,7 +353,6 @@ em {
   background: rgba(240, 178, 74, 0.07);
   font-size: 13px;
   color: var(--gold-1);
-  backdrop-filter: blur(8px);
   animation: fadeUp 1s var(--ease) both;
   transition: border-color 0.3s, background 0.3s;
 }
@@ -380,12 +363,25 @@ em {
 }
 
 .pill__dot {
+  position: relative;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--gold-2);
-  box-shadow: 0 0 0 0 rgba(240, 178, 74, 0.7);
-  animation: pulse 2s infinite;
+}
+
+.pill__dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--gold-2);
+  animation: ping 2s ease-out infinite;
+}
+
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  70%, 100% { transform: scale(3.2); opacity: 0; }
 }
 
 .pill__arrow {
@@ -449,8 +445,8 @@ em {
 }
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(30px); filter: blur(8px); }
-  to { opacity: 1; transform: none; filter: none; }
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* Golden waterfall */
@@ -461,25 +457,23 @@ em {
   right: -2%;
   width: min(50vw, 720px);
   z-index: 1;
-  /* No "to" keyframe, so the animation ends at the opacity set for each breakpoint. */
-  animation: fallsIn 2.4s 0.2s ease backwards;
-  /* Fade the canvas into the page on every side. */
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 86%, transparent),
-    linear-gradient(180deg, transparent, #000 10%, #000 84%, transparent);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 86%, transparent),
-    linear-gradient(180deg, transparent, #000 10%, #000 84%, transparent);
-  mask-composite: intersect;
+}
+
+.waterfall,
+.stardust {
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+
+.waterfall.is-ready,
+.stardust.is-ready {
+  opacity: 1;
 }
 
 .waterfall {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-@keyframes fallsIn {
-  from { opacity: 0; }
 }
 
 @keyframes fadeIn {
@@ -537,14 +531,34 @@ em {
   border-bottom: 1px solid var(--border);
   background: linear-gradient(90deg, rgba(240, 178, 74, 0.04), rgba(155, 107, 255, 0.04));
   overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+
+.marquee::before,
+.marquee::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 12%;
+  pointer-events: none;
+}
+
+.marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--bg), transparent);
+}
+
+.marquee::after {
+  right: 0;
+  background: linear-gradient(-90deg, var(--bg), transparent);
 }
 
 .marquee__track {
   display: flex;
   width: max-content;
   animation: marquee 40s linear infinite;
+  will-change: transform;
 }
 
 .marquee:hover .marquee__track {
@@ -859,15 +873,13 @@ em {
   grid-area: 1 / 1;
   opacity: 0;
   transform: translateY(20px);
-  filter: blur(6px);
-  transition: opacity 0.9s var(--ease), transform 0.9s var(--ease), filter 0.9s var(--ease);
+  transition: opacity 0.9s var(--ease), transform 0.9s var(--ease);
   pointer-events: none;
 }
 
 .quote.is-active {
   opacity: 1;
   transform: none;
-  filter: none;
   pointer-events: auto;
 }
 
@@ -952,10 +964,13 @@ em {
   margin-top: -300px;
   border-radius: 50%;
   z-index: -1;
-  background: conic-gradient(from 0deg, var(--gold-2), var(--violet), var(--rose), var(--gold-1), var(--gold-2));
-  filter: blur(120px);
-  opacity: 0.35;
-  animation: spin 20s linear infinite;
+  background:
+    radial-gradient(closest-side at 35% 40%, rgba(240, 178, 74, 0.55), transparent),
+    radial-gradient(closest-side at 65% 55%, rgba(155, 107, 255, 0.45), transparent),
+    radial-gradient(closest-side at 50% 30%, rgba(255, 107, 154, 0.3), transparent);
+  opacity: 0.55;
+  animation: drift 24s ease-in-out infinite alternate;
+  will-change: transform;
 }
 
 .cta h2 {
@@ -977,8 +992,7 @@ em {
   padding: 6px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
-  background: rgba(7, 6, 11, 0.6);
-  backdrop-filter: blur(12px);
+  background: rgba(7, 6, 11, 0.85);
 }
 
 .cta__form input {

@@ -1,13 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { getJob } from '../data/jobs.js';
-import { getMember } from '../data/team.js';
-import { firstName } from '../utils/format.js';
-import { supabase, isSupabaseConfigured, profileFromRow, profileToRow } from '../lib/supabase.js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { getSupabase, isSupabaseConfigured, profileFromRow, profileToRow } from '../lib/supabase.js';
+import { useJobs } from './JobsStore.jsx';
 
-// Accounts and profiles live in Supabase (see supabase/migrations).
-// Saved jobs, applications and messages are still kept in localStorage, per user, until those tables exist.
-const activityKey = (userId) => `orovelia:activity:v2:${userId}`;
-const SUPPORT_ID = 'sofia-marquez';
+// Everything account-related lives in Supabase (see supabase/migrations):
+// auth + profiles, saved jobs, applications and the candidate ↔ team conversation.
+// Only UI preferences (notification list, desktop alerts) are kept in localStorage.
+const prefsKey = (userId) => `orovelia:prefs:v3:${userId}`;
 
 export const STAGES = [
   { id: 'interested', label: 'Interested' },
@@ -16,133 +14,22 @@ export const STAGES = [
   { id: 'offer', label: 'Offer' },
   { id: 'hired', label: 'Hired' },
 ];
-
-// Demo pacing: how long (ms) an application waits before the simulated recruiter moves it on.
-const AUTO_ADVANCE = { interested: 25000, shortlisted: 45000 };
-
-const emptyActivity = {
-  saved: [],
-  applications: [],
-  threads: {},
-  readAt: {},
-  notifications: [],
-  pending: [], // recruiter replies waiting to be delivered: { from, text, dueAt }
-  alerts: false,
-};
+export const stageLabel = (id) => (id === 'rejected' ? 'Not selected' : STAGES.find((s) => s.id === id)?.label || id);
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const now = () => new Date().toISOString();
 const redirect = (path) => `${window.location.origin}${path}`;
 
-function readActivity(userId) {
+export const appFromRow = (r) => ({ id: r.id, jobId: r.job_id, candidateId: r.candidate_id, stage: r.stage, history: r.history || [], createdAt: r.created_at, updatedAt: r.updated_at });
+export const msgFromRow = (r) => ({ id: r.id, candidateId: r.candidate_id, senderId: r.sender_id, jobId: r.job_id, body: r.body, readAt: r.read_at, createdAt: r.created_at });
+
+const emptyPrefs = { notifications: [], alerts: false };
+
+function readPrefs(userId) {
   try {
-    const raw = localStorage.getItem(activityKey(userId));
-    return raw ? { ...emptyActivity, ...JSON.parse(raw) } : null;
+    return { ...emptyPrefs, ...JSON.parse(localStorage.getItem(prefsKey(userId)) || '{}') };
   } catch {
-    return null;
+    return emptyPrefs;
   }
-}
-
-function notify(state, text, to) {
-  return [{ id: uid(), text, to, at: now(), read: false }, ...state.notifications].slice(0, 30);
-}
-
-function addMessage(state, memberId, from, text) {
-  const thread = state.threads[memberId] || [];
-  return { ...state.threads, [memberId]: [...thread, { id: uid(), from, text, at: now() }] };
-}
-
-function welcome(name) {
-  return {
-    ...emptyActivity,
-    threads: addMessage(
-      emptyActivity,
-      SUPPORT_ID,
-      'them',
-      `Hi ${firstName(name)}, welcome to Orovelia! I’m Sofía from candidate support. Your profile is live for our recruiters — browse jobs and tap “I’m interested” on anything you like. I’m here if you need a hand.`
-    ),
-    notifications: notify(emptyActivity, 'Welcome to Orovelia — your profile is live.', '/dashboard'),
-  };
-}
-
-function reducer(state, action) {
-  switch (action.type) {
-    case 'LOAD':
-      return action.state;
-    case 'TOGGLE_SAVE':
-      return {
-        ...state,
-        saved: state.saved.includes(action.jobId)
-          ? state.saved.filter((id) => id !== action.jobId)
-          : [action.jobId, ...state.saved],
-      };
-    case 'EXPRESS_INTEREST': {
-      const job = getJob(action.jobId);
-      if (!job || state.applications.some((a) => a.jobId === job.id)) return state;
-      const app = { jobId: job.id, stage: 'interested', history: [{ stage: 'interested', at: now() }] };
-      return {
-        ...state,
-        applications: [app, ...state.applications],
-        threads: addMessage(state, job.recruiterId, 'me', `Hi! I’m interested in the ${job.title} role at ${job.employer}.`),
-        notifications: notify(state, `You said yes to ${job.title} at ${job.employer}.`, '/dashboard?tab=applications'),
-      };
-    }
-    case 'WITHDRAW':
-      return { ...state, applications: state.applications.filter((a) => a.jobId !== action.jobId) };
-    case 'ADVANCE': {
-      const job = getJob(action.jobId);
-      const label = STAGES.find((s) => s.id === action.stage)?.label;
-      return {
-        ...state,
-        applications: state.applications.map((a) =>
-          a.jobId === action.jobId
-            ? { ...a, stage: action.stage, history: [...a.history, { stage: action.stage, at: now() }] }
-            : a
-        ),
-        threads: action.message ? addMessage(state, job.recruiterId, 'them', action.message) : state.threads,
-        notifications: notify(state, `${job.title} at ${job.employer} moved to ${label}.`, '/dashboard?tab=applications'),
-      };
-    }
-    case 'SEND_MESSAGE':
-      return {
-        ...state,
-        threads: addMessage(state, action.to, 'me', action.text),
-        readAt: { ...state.readAt, [action.to]: now() },
-      };
-    case 'QUEUE_REPLY':
-      return { ...state, pending: [...state.pending, { from: action.from, text: action.text, dueAt: Date.now() + action.delay }] };
-    case 'DELIVER_DUE': {
-      const due = state.pending.filter((p) => p.dueAt <= action.now);
-      if (!due.length) return state;
-      return due.reduce(
-        (s, p) => ({
-          ...s,
-          threads: addMessage(s, p.from, 'them', p.text),
-          notifications: notify(s, `New message from ${getMember(p.from)?.name}.`, `/dashboard?tab=messages&with=${p.from}`),
-        }),
-        { ...state, pending: state.pending.filter((p) => p.dueAt > action.now) }
-      );
-    }
-    case 'READ_THREAD':
-      return { ...state, readAt: { ...state.readAt, [action.id]: now() } };
-    case 'READ_NOTIFICATIONS':
-      return { ...state, notifications: state.notifications.map((n) => ({ ...n, read: true })) };
-    case 'SET_ALERTS':
-      return { ...state, alerts: action.value };
-    default:
-      return state;
-  }
-}
-
-// Canned recruiter replies so the inbox feels alive in the demo.
-function replyFor(text, memberId, user) {
-  const t = text.toLowerCase();
-  const name = firstName(user?.name);
-  if (/pay|salary|rate|\$/.test(t)) return `Good question, ${name}. The range on the listing is confirmed with the employer, and I can share where you’d likely land once we’ve chatted about your experience.`;
-  if (/schedule|shift|hours|weekend|night/.test(t)) return `The schedule on the listing is the starting point — most of our partners have some flexibility. Tell me what works for you and I’ll check.`;
-  if (/interview|when|time/.test(t)) return `I’ll confirm a time with the employer and message you here. Interviews usually happen within 2–3 days.`;
-  if (memberId === SUPPORT_ID) return `Thanks ${name}! I’ll look into that for you and reply shortly. You can also reach us by phone Mon–Fri, 8am–6pm CT.`;
-  return `Thanks ${name}! I’ve noted that and will follow up shortly.`;
 }
 
 function desktopAlert(enabled, text) {
@@ -158,7 +45,11 @@ function desktopAlert(enabled, text) {
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  // ---------- Auth (Supabase) ----------
+  const { getJob } = useJobs();
+  const getJobRef = useRef(getJob);
+  getJobRef.current = getJob;
+
+  // ---------- Auth ----------
   const [session, setSession] = useState(null);
   const [authStatus, setAuthStatus] = useState(isSupabaseConfigured ? 'loading' : 'unconfigured');
   const [profile, setProfile] = useState(null);
@@ -166,24 +57,31 @@ export function AppProvider({ children }) {
   const userId = session?.user?.id;
 
   useEffect(() => {
-    if (!supabase) return;
-    // Keep this callback synchronous — awaiting Supabase calls inside it can deadlock the client.
-    const { data } = supabase.auth.onAuthStateChange((event, next) => {
-      setSession(next);
-      setAuthStatus(next ? 'signedIn' : 'signedOut');
-      if (event === 'SIGNED_OUT') {
-        setProfile(null);
-      }
+    let unsubscribe = () => {};
+    let cancelled = false;
+    getSupabase().then((supabase) => {
+      if (!supabase || cancelled) return;
+      // Keep this callback synchronous — awaiting Supabase calls inside it can deadlock the client.
+      const { data } = supabase.auth.onAuthStateChange((event, next) => {
+        setSession(next);
+        setAuthStatus(next ? 'signedIn' : 'signedOut');
+        if (event === 'SIGNED_OUT') setProfile(null);
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
     });
-    return () => data.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   // Load (or repair) the profile whenever a different user signs in.
   useEffect(() => {
-    if (!supabase || !userId) return;
+    if (!userId) return;
     let cancelled = false;
     setProfileError('');
     (async () => {
+      const supabase = await getSupabase();
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (cancelled) return;
       if (error) {
@@ -213,101 +111,109 @@ export function AppProvider({ children }) {
 
   const user = authStatus === 'signedIn' && profile && profile.id === userId ? profile : null;
   const authLoading = authStatus === 'loading' || (authStatus === 'signedIn' && !user && !profileError);
+  const isAdmin = user?.role === 'admin';
+  const candidateId = user && !isAdmin ? user.id : null;
 
-  // ---------- Activity (per user, localStorage) ----------
-  const [state, dispatch] = useReducer(reducer, emptyActivity);
-  const stateRef = useRef(state);
-  stateRef.current = state;
-  const loadedFor = useRef(null);
+  // ---------- Candidate activity ----------
+  const [saved, setSaved] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [prefs, setPrefs] = useState(emptyPrefs);
+  const [activityError, setActivityError] = useState('');
   const lastNotif = useRef(null);
-  const userRef = useRef(user);
-  userRef.current = user;
+
+  const notify = useCallback((text, to) => {
+    setPrefs((p) => ({ ...p, notifications: [{ id: uid(), text, to, at: new Date().toISOString(), read: false }, ...p.notifications].slice(0, 30) }));
+  }, []);
 
   useEffect(() => {
-    if (!user) {
-      loadedFor.current = null;
-      dispatch({ type: 'LOAD', state: emptyActivity });
+    if (!candidateId) {
+      setSaved([]);
+      setApplications([]);
+      setMessages([]);
+      setPrefs(emptyPrefs);
       return;
     }
-    if (loadedFor.current === user.id) return;
-    const stored = readActivity(user.id) || welcome(user.name);
+    const stored = readPrefs(candidateId);
     lastNotif.current = stored.notifications[0]?.id; // don't pop desktop alerts for old items
-    loadedFor.current = user.id;
-    dispatch({ type: 'LOAD', state: stored });
-  }, [user]);
+    setPrefs(stored);
 
+    let channel;
+    let cancelled = false;
+    (async () => {
+      const supabase = await getSupabase();
+      const [s, a, m] = await Promise.all([
+        supabase.from('saved_jobs').select('job_id').order('created_at', { ascending: false }),
+        supabase.from('applications').select('*').order('created_at', { ascending: false }),
+        supabase.from('messages').select('*').eq('candidate_id', candidateId).order('created_at'),
+      ]);
+      if (cancelled) return;
+      const err = s.error || a.error || m.error;
+      setActivityError(err ? err.message : '');
+      if (!s.error) setSaved(s.data.map((r) => r.job_id));
+      if (!a.error) setApplications(a.data.map(appFromRow));
+      if (!m.error) setMessages(m.data.map(msgFromRow));
+
+      // Live updates: the team moving an application, or replying.
+      channel = supabase
+        .channel(`candidate:${candidateId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'applications', filter: `candidate_id=eq.${candidateId}` }, ({ eventType, new: row, old }) => {
+          if (eventType === 'DELETE') {
+            setApplications((list) => list.filter((x) => x.id !== old.id));
+            return;
+          }
+          const next = appFromRow(row);
+          setApplications((list) => {
+            const prev = list.find((x) => x.id === next.id);
+            if (prev && prev.stage !== next.stage) {
+              const job = getJobRef.current(next.jobId);
+              notify(`${job ? job.title : 'Your application'} moved to ${stageLabel(next.stage)}.`, '/dashboard?tab=applications');
+            }
+            return prev ? list.map((x) => (x.id === next.id ? next : x)) : [next, ...list];
+          });
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `candidate_id=eq.${candidateId}` }, ({ new: row }) => {
+          const msg = msgFromRow(row);
+          setMessages((list) => (list.some((x) => x.id === msg.id) ? list : [...list, msg]));
+          if (msg.senderId !== candidateId) notify('New message from the Orovelia team.', '/dashboard?tab=messages');
+        })
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) getSupabase().then((supabase) => supabase.removeChannel(channel));
+    };
+  }, [candidateId, notify]);
+
+  // Persist UI prefs per user.
   useEffect(() => {
-    if (!loadedFor.current) return;
+    if (!candidateId) return;
     try {
-      localStorage.setItem(activityKey(loadedFor.current), JSON.stringify(state));
+      localStorage.setItem(prefsKey(candidateId), JSON.stringify(prefs));
     } catch {
       /* storage unavailable */
     }
-  }, [state]);
+  }, [prefs, candidateId]);
 
   // Desktop alert whenever a new notification arrives.
   useEffect(() => {
-    const latest = state.notifications[0];
-    if (latest && latest.id !== lastNotif.current) desktopAlert(state.alerts, latest.text);
+    const latest = prefs.notifications[0];
+    if (latest && latest.id !== lastNotif.current) desktopAlert(prefs.alerts, latest.text);
     lastNotif.current = latest?.id;
-  }, [state.notifications, state.alerts]);
-
-  // Simulated recruiter activity: moves fresh applications forward over time.
-  const signedIn = Boolean(user);
-  useEffect(() => {
-    if (!signedIn) return;
-    const id = setInterval(() => {
-      const s = stateRef.current;
-      for (const app of s.applications) {
-        const wait = AUTO_ADVANCE[app.stage];
-        const since = Date.now() - new Date(app.history[app.history.length - 1].at).getTime();
-        if (!wait || since < wait) continue;
-        const job = getJob(app.jobId);
-        const recruiter = getMember(job.recruiterId);
-        if (app.stage === 'interested') {
-          dispatch({
-            type: 'ADVANCE',
-            jobId: app.jobId,
-            stage: 'shortlisted',
-            message: `Great news, ${firstName(userRef.current?.name)} — I’ve shortlisted you for ${job.title} and shared your profile with ${job.employer}. I’ll be in touch about an interview. — ${firstName(recruiter?.name)}`,
-          });
-        } else if (app.stage === 'shortlisted') {
-          dispatch({
-            type: 'ADVANCE',
-            jobId: app.jobId,
-            stage: 'interview',
-            message: `${job.employer} would love to meet you! Does Thursday at 10am work for a 20-minute interview? Reply here and I’ll confirm.`,
-          });
-        }
-        break; // one change per tick keeps notifications readable
-      }
-    }, 4000);
-    return () => clearInterval(id);
-  }, [signedIn]);
-
-  // Deliver queued replies once they're due — survives page reloads because the queue is persisted.
-  useEffect(() => {
-    const id = setInterval(() => {
-      const t = Date.now();
-      if (stateRef.current.pending.some((p) => p.dueAt <= t)) dispatch({ type: 'DELIVER_DUE', now: t });
-    }, 800);
-    return () => clearInterval(id);
-  }, []);
-
-  const sendMessage = useCallback((to, text) => {
-    dispatch({ type: 'SEND_MESSAGE', to, text });
-    dispatch({ type: 'QUEUE_REPLY', from: to, text: replyFor(text, to, userRef.current), delay: 1600 });
-  }, []);
+  }, [prefs.notifications, prefs.alerts]);
 
   // ---------- Auth actions ----------
   const auth = useMemo(() => {
-    const need = () => {
+    const need = async () => {
+      const supabase = await getSupabase();
       if (!supabase) throw new Error('Sign-in isn’t configured yet. Add your Supabase publishable key to .env.local.');
+      return supabase;
     };
     return {
       // Returns { needsConfirmation } — true when Supabase emailed a confirmation link instead of signing in.
       async signUp(form, password) {
-        need();
+        const supabase = await need();
         const { data, error } = await supabase.auth.signUp({
           email: form.email.trim(),
           password,
@@ -320,30 +226,27 @@ export function AppProvider({ children }) {
         return { needsConfirmation: !data.session };
       },
       async signIn(email, password) {
-        need();
+        const supabase = await need();
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       },
       async resendConfirmation(email) {
-        need();
-        const { error } = await supabase.auth.resend({
-          type: 'signup',
-          email: email.trim(),
-          options: { emailRedirectTo: redirect('/dashboard') },
-        });
+        const supabase = await need();
+        const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: redirect('/dashboard') } });
         if (error) throw error;
       },
       async sendPasswordReset(email) {
-        need();
+        const supabase = await need();
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: redirect('/reset-password') });
         if (error) throw error;
       },
       async updatePassword(password) {
-        need();
+        const supabase = await need();
         const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
       },
       async signOut() {
+        const supabase = await getSupabase();
         if (supabase) await supabase.auth.signOut();
       },
     };
@@ -351,6 +254,7 @@ export function AppProvider({ children }) {
 
   const updateProfile = useCallback(
     async (next) => {
+      const supabase = await getSupabase();
       if (!supabase || !userId) return;
       const previous = profile;
       setProfile({ ...profile, ...next }); // optimistic
@@ -365,55 +269,96 @@ export function AppProvider({ children }) {
   );
 
   const deleteAccount = useCallback(async () => {
+    const supabase = await getSupabase();
     if (!supabase || !userId) return;
     const { error } = await supabase.rpc('delete_my_account');
     if (error) throw error;
     try {
-      localStorage.removeItem(activityKey(userId));
+      localStorage.removeItem(prefsKey(userId));
     } catch {
       /* ignore */
     }
     await supabase.auth.signOut({ scope: 'local' });
   }, [userId]);
 
-  const value = useMemo(() => {
-    const unreadNotifications = state.notifications.filter((n) => !n.read).length;
-    const unreadMessages = Object.entries(state.threads).reduce((sum, [id, msgs]) => {
-      const read = state.readAt[id] ? new Date(state.readAt[id]).getTime() : 0;
-      return sum + msgs.filter((m) => m.from === 'them' && new Date(m.at).getTime() > read).length;
-    }, 0);
-
+  // ---------- Candidate actions ----------
+  const candidate = useMemo(() => {
+    const requireCandidate = async () => {
+      if (!candidateId) throw new Error('Log in with a job seeker account to do that.');
+      return getSupabase();
+    };
     return {
-      state,
+      async toggleSave(jobId) {
+        const supabase = await requireCandidate();
+        const wasSaved = saved.includes(jobId);
+        setSaved((list) => (wasSaved ? list.filter((id) => id !== jobId) : [jobId, ...list]));
+        const { error } = wasSaved
+          ? await supabase.from('saved_jobs').delete().eq('job_id', jobId).eq('user_id', candidateId)
+          : await supabase.from('saved_jobs').insert({ job_id: jobId });
+        if (error) {
+          setSaved((list) => (wasSaved ? [jobId, ...list] : list.filter((id) => id !== jobId)));
+          throw error;
+        }
+      },
+      async expressInterest(jobId) {
+        const supabase = await requireCandidate();
+        if (applications.some((a) => a.jobId === jobId)) return;
+        const { data, error } = await supabase.from('applications').insert({ job_id: jobId }).select().single();
+        if (error) throw new Error(/duplicate/i.test(error.message) ? 'You’ve already said yes to this job.' : error.message);
+        setApplications((list) => [appFromRow(data), ...list.filter((x) => x.id !== data.id)]);
+        const job = getJobRef.current(jobId);
+        notify(`You said yes to ${job?.title || 'a job'}${job ? ` at ${job.employer}` : ''}.`, '/dashboard?tab=applications');
+        // Let the team know in the conversation, with the job attached.
+        const { data: msg } = await supabase
+          .from('messages')
+          .insert({ candidate_id: candidateId, job_id: jobId, body: `Hi! I’m interested in the ${job?.title || ''} role${job ? ` at ${job.employer}` : ''}.` })
+          .select()
+          .single();
+        if (msg) setMessages((list) => (list.some((x) => x.id === msg.id) ? list : [...list, msgFromRow(msg)]));
+      },
+      async withdraw(jobId) {
+        const supabase = await requireCandidate();
+        const { error } = await supabase.from('applications').delete().eq('job_id', jobId).eq('candidate_id', candidateId);
+        if (error) throw error;
+        setApplications((list) => list.filter((a) => a.jobId !== jobId));
+      },
+      async sendMessage(body, jobId = null) {
+        const supabase = await requireCandidate();
+        const { data, error } = await supabase.from('messages').insert({ candidate_id: candidateId, body, job_id: jobId }).select().single();
+        if (error) throw error;
+        setMessages((list) => (list.some((x) => x.id === data.id) ? list : [...list, msgFromRow(data)]));
+      },
+      async readThread() {
+        if (!candidateId || !messages.some((m) => m.senderId !== candidateId && !m.readAt)) return;
+        const now = new Date().toISOString();
+        setMessages((list) => list.map((m) => (m.senderId !== candidateId && !m.readAt ? { ...m, readAt: now } : m)));
+        const supabase = await getSupabase();
+        await supabase.rpc('mark_thread_read', { p_candidate: candidateId });
+      },
+    };
+  }, [candidateId, saved, applications, messages, notify]);
+
+  const value = useMemo(() => {
+    const unreadMessages = candidateId ? messages.filter((m) => m.senderId !== candidateId && !m.readAt).length : 0;
+    return {
       user,
+      isAdmin,
       authStatus,
       authLoading,
       authConfigured: isSupabaseConfigured,
       profileError,
-      unreadNotifications,
+      activityError,
+      state: { saved, applications, messages, notifications: prefs.notifications, alerts: prefs.alerts },
+      unreadNotifications: prefs.notifications.filter((n) => !n.read).length,
       unreadMessages,
       ...auth,
       logout: auth.signOut,
       updateProfile,
       deleteAccount,
-      isSaved: (jobId) => state.saved.includes(jobId),
-      applicationFor: (jobId) => state.applications.find((a) => a.jobId === jobId),
-      toggleSave: (jobId) => dispatch({ type: 'TOGGLE_SAVE', jobId }),
-      expressInterest: (jobId) => {
-        if (state.applications.some((a) => a.jobId === jobId)) return;
-        dispatch({ type: 'EXPRESS_INTEREST', jobId });
-        const job = getJob(jobId);
-        dispatch({
-          type: 'QUEUE_REPLY',
-          from: job.recruiterId,
-          text: `Thanks for your interest in ${job.title}! I’m reviewing your profile now and will update you here within a day.`,
-          delay: 2000,
-        });
-      },
-      withdraw: (jobId) => dispatch({ type: 'WITHDRAW', jobId }),
-      sendMessage,
-      readThread: (id) => dispatch({ type: 'READ_THREAD', id }),
-      readNotifications: () => dispatch({ type: 'READ_NOTIFICATIONS' }),
+      ...candidate,
+      isSaved: (jobId) => saved.includes(jobId),
+      applicationFor: (jobId) => applications.find((a) => a.jobId === jobId),
+      readNotifications: () => setPrefs((p) => ({ ...p, notifications: p.notifications.map((n) => ({ ...n, read: true })) })),
       setAlerts: async (on) => {
         if (on && 'Notification' in window && Notification.permission === 'default') {
           try {
@@ -422,10 +367,10 @@ export function AppProvider({ children }) {
             /* ignore */
           }
         }
-        dispatch({ type: 'SET_ALERTS', value: on });
+        setPrefs((p) => ({ ...p, alerts: on }));
       },
     };
-  }, [state, user, authStatus, authLoading, profileError, auth, updateProfile, deleteAccount, sendMessage]);
+  }, [user, isAdmin, authStatus, authLoading, profileError, activityError, saved, applications, messages, prefs, auth, updateProfile, deleteAccount, candidate, candidateId]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

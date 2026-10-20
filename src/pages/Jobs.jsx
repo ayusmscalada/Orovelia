@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar.jsx';
 import JobCard from '../components/JobCard.jsx';
-import { jobs, industries, jobTypes } from '../data/jobs.js';
+import { industries, jobTypes, getIndustry } from '../data/jobs.js';
+import { useJobs } from '../store/JobsStore.jsx';
 
 const PAGE_SIZE = 8;
 const payOptions = [0, 15, 20, 25, 30];
@@ -10,7 +11,7 @@ const hourly = (job) => (job.payUnit === 'year' ? job.payMax / 2080 : job.payMax
 
 function matches(job, { q, loc, industry, types, remote, minPay }) {
   if (q) {
-    const ind = industries.find((i) => i.id === job.industry);
+    const ind = getIndustry(job.industry);
     const hay = `${job.title} ${job.employer} ${job.summary} ${ind.name} ${ind.occupations.join(' ')}`.toLowerCase();
     if (!q.toLowerCase().split(/\s+/).every((w) => hay.includes(w))) return false;
   }
@@ -31,6 +32,7 @@ export default function Jobs() {
   const [params, setParams] = useSearchParams();
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [drawer, setDrawer] = useState(false);
+  const { jobs, loading } = useJobs();
 
   const filters = {
     q: params.get('q') || '',
@@ -57,7 +59,7 @@ export default function Jobs() {
       ? list.sort((a, b) => hourly(b) - hourly(a))
       : list.sort((a, b) => a.postedDaysAgo - b.postedDaysAgo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
+  }, [params, jobs]);
 
   useEffect(() => setVisible(PAGE_SIZE), [params]);
 
@@ -177,7 +179,11 @@ export default function Jobs() {
               </div>
             </div>
 
-            {results.length ? (
+            {loading && !jobs.length ? (
+              <div className="job-list">
+                {Array.from({ length: 5 }, (_, i) => <div key={i} className="job-card job-card--skeleton" />)}
+              </div>
+            ) : results.length ? (
               <div className="job-list">
                 {results.slice(0, visible).map((job, i) => (
                   <div key={job.id} className="job-list__item" style={{ animationDelay: `${(i % PAGE_SIZE) * 50}ms` }}>

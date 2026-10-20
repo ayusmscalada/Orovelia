@@ -26,21 +26,26 @@ npm run build    # production build in dist/
 | `/help`         | Searchable FAQ, safety, team directory, support channels             |
 | `/contact`      | Contact form                                                          |
 | `/signup`       | 4-step profile builder                                               |
-| `/login`        | Log in, or explore with a demo profile                               |
-| `/dashboard`    | Overview, applications (stage tracker), saved jobs, messages, profile, settings |
+| `/login`        | Log in; forgot password                                              |
+| `/dashboard`    | Candidate: overview, applications (stage tracker), saved jobs, messages, profile, settings |
+| `/admin`        | Admin: overview, jobs (post / edit / close / delete), applicant pipeline, candidates, messages |
 
 Search filters live in the URL, e.g. `/jobs?q=cook&loc=nashville&type=Full-time`.
 Team profiles can be linked directly: `/help?member=lucia-romero`.
 
-## Supabase (sign up & log in)
+## Supabase
 
-Accounts and candidate profiles live in Supabase.
+Accounts, profiles, jobs, applications, saved jobs and messages all live in Supabase.
 
-1. **Create the table.** In the Supabase dashboard open **SQL Editor**, paste
-   [supabase/migrations/0001_profiles.sql](supabase/migrations/0001_profiles.sql)
-   and run it. It creates `public.profiles` with row level security, a trigger
-   that creates each user's profile from the sign-up form, and a
-   `delete_my_account()` function.
+1. **Create the tables.** In the Supabase dashboard open **SQL Editor** and run,
+   in order:
+   - [0001_profiles.sql](supabase/migrations/0001_profiles.sql) — profiles, sign-up trigger, `delete_my_account()`
+   - [0002_marketplace.sql](supabase/migrations/0002_marketplace.sql) — admin role + allowlist, `jobs`,
+     `applications`, `saved_jobs`, `messages`, row level security, Realtime
+   - [0003_seed_jobs.sql](supabase/migrations/0003_seed_jobs.sql) — the 28 starter listings
+     (regenerate with `node scripts/generate-job-seed.mjs`)
+
+   All three are safe to re-run.
 2. **Add your keys.** Copy `.env.example` to `.env.local` and set
    `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
    (Project Settings → API Keys). Use the **publishable** key only — the
@@ -55,23 +60,44 @@ log in with email and password; forgot password → email link →
 `/reset-password`; profile edits save to `profiles`; Settings → Delete account
 removes the user.
 
-## Still front-end only
+## Admin
 
-Saved jobs, applications, messages and notifications are kept in the
-browser's `localStorage` (per signed-in user) by
-[src/store/AppStore.jsx](src/store/AppStore.jsx) until they get their own tables.
+Admins are the Orovelia team. Emails in `public.admin_allowlist` become admins
+automatically when their account is created; everyone else is a candidate, and
+nobody can change their own role from the app. The first admin is
+**support@orovelia.com (Austin Parker)**.
 
-To make the demo feel alive, the store **simulates recruiter activity**:
-recruiters auto-reply to messages, and new applications move to *Shortlisted*
-after ~25s and *Interview* after a further ~45s. Remove `AUTO_ADVANCE` and
-`replyFor` once real data arrives. The employer and contact forms don't send
-anywhere yet.
+**Create the admin account:** Supabase → Authentication → Users → *Add user* →
+*Create new user* with `support@orovelia.com`, a password, and *Auto Confirm
+User* ticked. Then log in on the site — you land on `/admin`.
+
+**Add another admin:**
+
+```sql
+insert into public.admin_allowlist (email, full_name, phone)
+values ('name@orovelia.com', 'Full Name', '+1 …');
+-- If that person already has an account, also run:
+update public.profiles set role = 'admin' where email = 'name@orovelia.com';
+```
+
+What admins can do:
+
+- **Jobs** — post, edit, close/reopen and delete listings (live on the site immediately)
+- **Pipeline** — per job, drag candidates between Interested → Shortlisted →
+  Interview → Offer → Hired / Not selected; candidates see each change live
+- **Candidates** — search all job seekers, view full profiles and applications
+- **Messages** — one conversation per candidate, with job tags and read receipts;
+  candidates' “I'm interested” posts an intro message automatically
+
+Without Supabase configured the public site still works using the starter jobs in
+`src/data/jobs.js`; accounts and the admin area need Supabase. The employer and
+contact forms don't send anywhere yet.
 
 ## Editing content
 
 All copy lives in `src/data/`:
 
-- `jobs.js` — industries, occupations and job listings
+- `jobs.js` — industries, occupations and the starter job listings
 - `team.js` — recruiters and staff (set `photo` to an image URL to replace initials)
 - `help.js` — FAQs, safety tips, support channels
 - `company.js` — steps, values, stories, partners, offices
@@ -81,8 +107,10 @@ All copy lives in `src/data/`:
 ```
 src/
   App.jsx          routes
-  lib/supabase.js  Supabase client + profile row mapping
-  store/           auth (Supabase) + app state (applications, messages) + simulation
+  lib/supabase.js  Supabase client, row mapping, public jobs fetch
+  store/           JobsStore (public jobs) + AppStore (auth, candidate activity, realtime)
+  admin/           AdminStore (all jobs, applicants, candidates, messages) + admin.css
+  pages/admin/     admin screens
   pages/           one file per route
   components/      shared UI (JobCard, SearchBar, StageTracker, ProfileFields, …)
   data/            editable content

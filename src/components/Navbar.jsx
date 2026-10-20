@@ -5,6 +5,7 @@ import Magnetic from './Magnetic.jsx';
 import Avatar from './Avatar.jsx';
 import { useApp } from '../store/AppStore.jsx';
 import { timeAgo } from '../utils/format.js';
+import { prefetch } from '../routes.js';
 
 const links = [
   { to: '/jobs', label: 'Find jobs' },
@@ -70,7 +71,8 @@ export default function Navbar() {
   const [indicator, setIndicator] = useState({ left: 0, width: 0, opacity: 0 });
   const navRef = useRef(null);
   const { pathname } = useLocation();
-  const { user, authLoading } = useApp();
+  const { user, isAdmin, authLoading } = useApp();
+  const home = isAdmin ? '/admin' : '/dashboard';
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -116,7 +118,15 @@ export default function Navbar() {
             aria-hidden="true"
           />
           {links.map((l) => (
-            <NavLink key={l.to} to={l.to} onMouseEnter={(e) => moveTo(e.currentTarget)}>
+            <NavLink
+              key={l.to}
+              to={l.to}
+              onMouseEnter={(e) => {
+                moveTo(e.currentTarget);
+                prefetch(l.to);
+              }}
+              onFocus={() => prefetch(l.to)}
+            >
               {l.label}
             </NavLink>
           ))}
@@ -126,22 +136,26 @@ export default function Navbar() {
               <Link to="/signup" className="nav__mobile-only">Get started →</Link>
             </>
           )}
-          {user && <Link to="/dashboard" className="nav__mobile-only">Dashboard</Link>}
+          {user && <Link to={home} className="nav__mobile-only">{isAdmin ? 'Admin' : 'Dashboard'}</Link>}
         </nav>
 
         <div className="nav__actions">
           {authLoading ? null : user ? (
             <>
-              <Bell />
-              <Link to="/dashboard" className="nav__me" aria-label="Your dashboard">
+              {isAdmin ? (
+                <Link to="/admin" className="btn btn--ghost nav__admin" onMouseEnter={() => prefetch('/admin')}>Admin</Link>
+              ) : (
+                <Bell />
+              )}
+              <Link to={home} className="nav__me" aria-label={isAdmin ? 'Admin area' : 'Your dashboard'} onMouseEnter={() => prefetch(home)}>
                 <Avatar name={user.name || 'You'} hue={40} size={36} />
               </Link>
             </>
           ) : (
             <>
-              <Link to="/login" className="nav__login">Log in</Link>
+              <Link to="/login" className="nav__login" onMouseEnter={() => prefetch('/login')}>Log in</Link>
               <Magnetic className="nav__cta-wrap">
-                <Link to="/signup" className="btn btn--gold nav__cta">
+                <Link to="/signup" className="btn btn--gold nav__cta" onMouseEnter={() => prefetch('/signup')}>
                   Get started <span className="btn__shine" />
                 </Link>
               </Magnetic>

@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar.jsx';
 import Footer from './Footer.jsx';
 import CursorGlow from './CursorGlow.jsx';
 import ScrollProgress from './ScrollProgress.jsx';
-import { getJob } from '../data/jobs.js';
+import { useJobs } from '../store/JobsStore.jsx';
 
 const titles = {
   '/': 'Orovelia — Find work that fits your life',
@@ -21,20 +21,27 @@ const titles = {
   '/reset-password': 'Reset password — Orovelia',
 };
 
-function titleFor(pathname) {
+function titleFor(pathname, getJob) {
   if (titles[pathname]) return titles[pathname];
+  if (pathname.startsWith('/admin')) return 'Admin — Orovelia';
   const job = pathname.startsWith('/jobs/') && getJob(pathname.slice(6));
   return job ? `${job.title} at ${job.employer} — Orovelia` : 'Page not found — Orovelia';
 }
 
 export default function Layout() {
   const { pathname, hash } = useLocation();
+  const { getJob } = useJobs();
+  const isAdminArea = pathname.startsWith('/admin');
 
-  // New page: reset the title and jump to the top.
+  // New page: jump to the top.
   useEffect(() => {
-    document.title = titleFor(pathname);
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [pathname]);
+
+  // Title (re-runs when jobs finish loading, so a job page opened directly gets its title).
+  useEffect(() => {
+    document.title = titleFor(pathname, getJob);
+  }, [pathname, getJob]);
 
   // A #section in the URL scrolls to it once the page has rendered.
   useEffect(() => {
@@ -48,14 +55,16 @@ export default function Layout() {
 
   return (
     <>
-      <CursorGlow />
+      {!isAdminArea && <CursorGlow />}
       <ScrollProgress />
-      <div className="grain" aria-hidden="true" />
       <Navbar />
-      <main key={pathname} className="page">
-        <Outlet />
+      {/* Re-key per page for the enter animation — but keep the admin area mounted across its screens. */}
+      <main key={isAdminArea ? '/admin' : pathname} className="page">
+        <Suspense fallback={<div className="page-loading"><span className="loader" aria-label="Loading" /></div>}>
+          <Outlet />
+        </Suspense>
       </main>
-      <Footer />
+      {!isAdminArea && <Footer />}
     </>
   );
 }

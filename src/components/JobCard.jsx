@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import SaveButton from './SaveButton.jsx';
+import { prefetch } from '../routes.js';
 import { getIndustry } from '../data/jobs.js';
 import { formatPay, locationLabel, postedLabel } from '../utils/format.js';
-import { useApp, STAGES } from '../store/AppStore.jsx';
+import { useApp, stageLabel } from '../store/AppStore.jsx';
 
 export default function JobCard({ job, compact = false }) {
   const industry = getIndustry(job.industry);
@@ -10,13 +11,18 @@ export default function JobCard({ job, compact = false }) {
   const app = applicationFor(job.id);
 
   return (
-    <Link to={`/jobs/${job.id}`} className={`job-card ${compact ? 'job-card--compact' : ''}`} style={{ '--hue': industry.hue }}>
+    <Link
+      to={`/jobs/${job.id}`}
+      className={`job-card ${compact ? 'job-card--compact' : ''}`}
+      style={{ '--hue': industry.hue }}
+      onMouseEnter={() => prefetch(`/jobs/${job.id}`)}
+    >
       <span className="job-card__icon" aria-hidden="true">{industry.icon}</span>
       <span className="job-card__main">
         <span className="job-card__top">
           {job.urgent && <span className="pill-tag pill-tag--hot">Hiring fast</span>}
           {job.remote && <span className="pill-tag">Remote</span>}
-          {app && <span className="pill-tag pill-tag--stage">{STAGES.find((s) => s.id === app.stage).label}</span>}
+          {app && <span className="pill-tag pill-tag--stage">{stageLabel(app.stage)}</span>}
           <span className="job-card__posted">{postedLabel(job.postedDaysAgo)}</span>
         </span>
         <span className="job-card__title">{job.title}</span>

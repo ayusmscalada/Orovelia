@@ -3,15 +3,17 @@ import { Link } from 'react-router-dom';
 import Stardust from './Stardust.jsx';
 import SearchBar from './SearchBar.jsx';
 import GoldenWaterfall from './GoldenWaterfall.jsx';
-import { jobs, getJob } from '../data/jobs.js';
+import { seedJobs } from '../data/jobs.js';
+import { useJobs } from '../store/JobsStore.jsx';
 import { formatPay } from '../utils/format.js';
 
 const words = ['life', 'schedule', 'skills', 'city'];
 const quick = ['Cook', 'Delivery Driver', 'Caregiver', 'House Cleaner', 'Electrician', 'Cashier'];
-const featured = getJob('line-cook-nashville');
-
 export default function Hero() {
   const [index, setIndex] = useState(0);
+  const { jobs, getJob } = useJobs();
+  // Decorative "recommendation" card — falls back to a starter listing while jobs load.
+  const featured = getJob('line-cook-nashville') || jobs.find((j) => j.urgent) || jobs[0] || seedJobs[0];
 
   useEffect(() => {
     const id = setInterval(() => setIndex((i) => (i + 1) % words.length), 2400);
@@ -31,7 +33,7 @@ export default function Hero() {
       <div className="container hero__content">
         <Link to="/jobs" className="pill">
           <span className="pill__dot" />
-          {jobs.length} open jobs right now — always free for job seekers
+          {jobs.length ? `${jobs.length} open jobs right now` : 'New jobs every day'} — always free for job seekers
           <span className="pill__arrow">→</span>
         </Link>
 
@@ -73,7 +75,7 @@ export default function Hero() {
           <strong>{featured.title}</strong>
           <span className="rec-card__employer">{featured.employer}</span>
           <span className="rec-card__meta">
-            {featured.city}, {featured.state} · {formatPay(featured)}
+            {featured.remote ? 'Remote' : `${featured.city}, ${featured.state}`} · {formatPay(featured)}
           </span>
           <span className="rec-card__btn">I’m interested</span>
         </div>

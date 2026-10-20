@@ -10,15 +10,18 @@ import Testimonials from '../components/Testimonials.jsx';
 import Accordion from '../components/Accordion.jsx';
 import Reveal from '../components/Reveal.jsx';
 import CTA from '../components/CTA.jsx';
-import { industries, jobsInIndustry } from '../data/jobs.js';
+import { industries } from '../data/jobs.js';
+import { useJobs } from '../store/JobsStore.jsx';
 import { faqs } from '../data/help.js';
 
-const popular = [...industries].sort((a, b) => jobsInIndustry(b.id).length - jobsInIndustry(a.id).length).slice(0, 4);
 const homeFaqs = [faqs[0], faqs[6], faqs[3], faqs[4]];
 
 export default function Home() {
+  const { jobsInIndustry } = useJobs();
+  const popular = [...industries].sort((a, b) => jobsInIndustry(b.id).length - jobsInIndustry(a.id).length).slice(0, 4);
+
   return (
-    <>
+    <div className="home">
       <Hero />
       <Marquee />
       <Stats />
@@ -70,6 +73,6 @@ export default function Home() {
       </section>
 
       <CTA />
-    </>
+    </div>
   );
 }

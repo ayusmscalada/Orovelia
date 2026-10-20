@@ -11,6 +11,66 @@
   grid-template-columns: repeat(var(--cols, 4), 1fr);
 }
 
+/* ---------- Scrollbars ----------
+   Slim gold thumbs that match the theme. Chromium/Safari use the ::-webkit-scrollbar
+   pseudo-elements; Firefox (which lacks them) gets the standard properties. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 227, 163, 0.38), rgba(155, 107, 255, 0.32)) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2)) padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Panels: keep the thumb clear of the rounded corners, quiet until hovered. */
+.filters::-webkit-scrollbar-track,
+.inbox__list::-webkit-scrollbar-track,
+.chat__body::-webkit-scrollbar-track,
+.bell__menu ul::-webkit-scrollbar-track,
+.modal__panel::-webkit-scrollbar-track {
+  margin: 18px 0;
+}
+
+.filters::-webkit-scrollbar-thumb,
+.inbox__list::-webkit-scrollbar-thumb,
+.chat__body::-webkit-scrollbar-thumb {
+  background: rgba(255, 227, 163, 0.24) padding-box;
+}
+
+.filters:hover::-webkit-scrollbar-thumb,
+.inbox__list:hover::-webkit-scrollbar-thumb,
+.chat__body:hover::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 227, 163, 0.55), rgba(240, 178, 74, 0.45)) padding-box;
+}
+
+.filters::-webkit-scrollbar-thumb:hover,
+.inbox__list::-webkit-scrollbar-thumb:hover,
+.chat__body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2)) padding-box;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 227, 163, 0.35) transparent;
+  }
+}
+
 /* Grid children may hold horizontal scrollers; don't let them stretch the track. */
 .jobs-layout > *,
 .job-layout > *,
@@ -225,8 +285,7 @@
   width: min(360px, calc(100vw - 32px));
   border-radius: 20px;
   border: 1px solid var(--border-strong);
-  background: rgba(14, 12, 22, 0.97);
-  backdrop-filter: blur(18px);
+  background: rgba(14, 12, 22, 0.98);
   box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
   overflow: hidden;
   animation: fadeUp 0.35s var(--ease);
@@ -287,8 +346,7 @@
   padding: 6px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
-  background: rgba(10, 9, 16, 0.75);
-  backdrop-filter: blur(14px);
+  background: rgba(12, 10, 19, 0.92);
   box-shadow: 0 24px 70px -24px rgba(0, 0, 0, 0.8);
   transition: border-color 0.3s, box-shadow 0.3s;
 }
@@ -368,8 +426,7 @@
   z-index: 3;
   border-radius: 20px;
   border: 1px solid rgba(255, 227, 163, 0.25);
-  background: rgba(14, 12, 22, 0.82);
-  backdrop-filter: blur(16px);
+  background: rgba(16, 13, 25, 0.94);
   box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8), 0 0 40px -10px rgba(240, 178, 74, 0.3);
 }
 
@@ -764,14 +821,29 @@
 }
 
 .filters {
+  --panel-bg: #100f16;
   position: sticky;
   top: 96px;
   padding: 24px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--panel-bg);
   max-height: calc(100vh - 120px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* Fade at the bottom edge so it's clear the list continues. */
+.filters::after {
+  content: '';
+  position: sticky;
+  bottom: -24px;
+  display: block;
+  height: 44px;
+  margin: -44px -24px -24px;
+  background: linear-gradient(rgba(16, 15, 22, 0), var(--panel-bg) 85%);
+  pointer-events: none;
 }
 
 .filters__head {
@@ -1068,8 +1140,7 @@
   padding: 16px 18px;
   border-radius: 16px;
   border: 1px solid var(--border);
-  background: rgba(10, 9, 16, 0.5);
-  backdrop-filter: blur(10px);
+  background: rgba(12, 10, 19, 0.75);
 }
 
 .job-facts small {
@@ -1520,8 +1591,7 @@
   padding: clamp(26px, 4vw, 44px);
   border-radius: 28px;
   border: 1px solid var(--border-strong);
-  background: rgba(14, 12, 22, 0.85);
-  backdrop-filter: blur(20px);
+  background: rgba(14, 12, 22, 0.95);
   box-shadow: 0 50px 100px -40px rgba(0, 0, 0, 0.9);
   animation: fadeUp 1s 0.1s var(--ease) both;
 }
@@ -2327,8 +2397,7 @@
   padding: 14px 14px 14px 22px;
   border-radius: 999px;
   border: 1px solid rgba(255, 227, 163, 0.3);
-  background: rgba(14, 12, 22, 0.92);
-  backdrop-filter: blur(16px);
+  background: rgba(14, 12, 22, 0.97);
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.9);
   opacity: 0;
   transform: translateY(20px);
@@ -2410,6 +2479,13 @@
   cursor: not-allowed;
 }
 
+/* Shown for a moment while a page's code chunk downloads. */
+.page-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
 .dashboard--loading {
   display: grid;
   place-items: center;
@@ -2422,6 +2498,102 @@
   border: 3px solid rgba(255, 227, 163, 0.15);
   border-top-color: var(--gold-2);
   animation: spin 0.9s linear infinite;
+}
+
+/* ---------- Live data states ---------- */
+.muted-note {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.job-card--skeleton {
+  min-height: 132px;
+  background: linear-gradient(100deg, var(--surface) 40%, rgba(255, 255, 255, 0.06) 50%, var(--surface) 60%) 0 0 / 300% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  to { background-position: -150% 0; }
+}
+
+.nav__admin {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+/* Application outcome */
+.pill-tag--stage.stage--rejected {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--border-strong);
+}
+
+.pill-tag--stage.stage--hired {
+  color: #0b2b16;
+  background: #4ade80;
+}
+
+.stages-wrap.is-rejected .stages::after {
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: none;
+}
+
+.stages-wrap.is-rejected .stages__step.is-done .stages__dot {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.stages__note {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Chat additions */
+.bubble__job {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.bubble:not(.bubble--me) .bubble__job {
+  color: var(--gold-1);
+  background: rgba(240, 178, 74, 0.1);
+}
+
+.chat__error {
+  padding: 0 16px;
+}
+
+.chat__job {
+  flex: none;
+}
+
+.chat__team-logo {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(240, 178, 74, 0.1);
+  border: 1px solid rgba(255, 227, 163, 0.25);
+}
+
+.inbox--single {
+  grid-template-columns: 1fr;
+}
+
+/* ---------- Render only what's on screen ----------
+   Below-the-fold landing sections (and the footer) skip layout and paint until they near the
+   viewport, so the first render is roughly the hero alone. `auto` remembers each section's real
+   height once seen, so the scrollbar settles quickly. Limited to the landing page because it has
+   no position: fixed children or deep #hash links into these sections. */
+.home > section:not(.hero),
+.footer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 760px;
 }
 
 /* ---------- Responsive ---------- */
@@ -2493,7 +2665,8 @@
     width: min(360px, 90vw);
     max-height: none;
     border-radius: 24px 0 0 24px;
-    background: var(--bg-2);
+    --panel-bg: var(--bg-2);
+    background: var(--panel-bg);
     transform: translateX(105%);
     transition: transform 0.5s var(--ease);
   }
